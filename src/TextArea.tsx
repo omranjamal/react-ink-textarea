@@ -492,6 +492,7 @@ export const TextArea = ({
     const atCursor = lineText[cursorColumn] ?? " ";
     const after = lineText.slice(cursorColumn + 1);
     const cursorChar = getCursorChar(cursorStyle);
+    const isAtEnd = cursorColumn >= lineText.length;
 
     return renderLine(
       <Text>
@@ -499,10 +500,15 @@ export const TextArea = ({
         {cursorVisible ? (
           cursorStyle === "block" ? (
             <Text inverse>{atCursor === " " ? cursorChar : atCursor}</Text>
-          ) : (
+          ) : isAtEnd ? (
             <Text inverse>{cursorChar}</Text>
+          ) : (
+            <>
+              <Text inverse>{cursorChar}</Text>
+              {atCursor}
+            </>
           )
-        ) : atCursor === " " && cursorColumn >= lineText.length ? (
+        ) : atCursor === " " && isAtEnd ? (
           " "
         ) : (
           atCursor

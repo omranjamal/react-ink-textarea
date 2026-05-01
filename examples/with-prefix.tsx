@@ -16,6 +16,7 @@ const App = () => {
         onSubmit={setSubmitted}
         placeholder="Write some code..."
         maxTrailingEmptyLines={3}
+        cursorStyle={"block"}
         linePrefix={(lineNumber, totalLines, isActiveLine) => (
           <Text>
             <Text color="gray">│ </Text>
