@@ -4,9 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "basic": "tsx --conditions=development basic.tsx",
-    "with-prefix": "tsx --conditions=development with-prefix.tsx",
-    "wrap-text": "tsx --conditions=development wrap-text.tsx"
+    "advanced": "tsx --no-cache --watch --conditions=development advanced.tsx"
   },
   "dependencies": {
     "ink": "^7.0.1",
