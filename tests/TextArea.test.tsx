@@ -796,4 +796,359 @@ describe("TextArea", () => {
       }
     }, 10000);
   });
+
+  describe("Undo/Redo", () => {
+    it("Ctrl+Z reverts last character", async () => {
+      const { stdin, lastFrame } = render(
+        <TextArea isActive={true} onSubmit={() => {}} undoGroupDelay={0} />,
+      );
+
+      stdin.write("a");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      stdin.write("b");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(lastFrame()).toContain("ab");
+
+      stdin.write("\x1a"); // Ctrl+Z
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(lastFrame()).toContain("a");
+      expect(lastFrame()).not.toContain("ab");
+    });
+
+    it("Ctrl+Z is no-op with empty stack", async () => {
+      const onChange = vi.fn();
+      const { stdin } = render(
+        <TextArea isActive={true} onSubmit={() => {}} onChange={onChange} />,
+      );
+
+      onChange.mockClear();
+
+      stdin.write("\x1a"); // Ctrl+Z on empty stack
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // onChange not called (nothing to undo)
+      expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it("multiple undos restore each prior state", async () => {
+      const { stdin, lastFrame } = render(
+        <TextArea isActive={true} onSubmit={() => {}} undoGroupDelay={0} />,
+      );
+
+      stdin.write("a");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      stdin.write("b");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      stdin.write("c");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      stdin.write("\x1a"); // Ctrl+Z → "ab"
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      stdin.write("\x1a"); // Ctrl+Z → "a"
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      stdin.write("\x1a"); // Ctrl+Z → ""
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // All content removed
+      expect(lastFrame()).not.toMatch(/[abc]/);
+    });
+
+    it("maxUndo=1 keeps only one undo entry", async () => {
+      const { stdin, lastFrame } = render(
+        <TextArea
+          isActive={true}
+          onSubmit={() => {}}
+          maxUndo={1}
+          undoGroupDelay={0}
+        />,
+      );
+
+      stdin.write("a");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      stdin.write("b");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      stdin.write("c");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      stdin.write("\x1a"); // Ctrl+Z
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      stdin.write("\x1a"); // Ctrl+Z again — stack empty, no-op
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // Should have only restored one step; 'a' or 'ab' visible
+      const frame = lastFrame()!;
+      expect(frame).not.toContain("abc");
+    });
+
+    it("undo groups inserts with undoGroupDelay=0 as separate entries", async () => {
+      const { stdin, lastFrame } = render(
+        <TextArea isActive={true} onSubmit={() => {}} undoGroupDelay={0} />,
+      );
+
+      stdin.write("x");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      stdin.write("y");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      stdin.write("\x1a"); // Ctrl+Z → removes 'y'
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(lastFrame()).toContain("x");
+      expect(lastFrame()).not.toContain("y");
+    });
+  });
+
+  describe("Keybindings", () => {
+    it("Ctrl+A moves cursor to start of line", async () => {
+      const onCursorChange = vi.fn();
+      const { stdin } = render(
+        <TextArea
+          isActive={true}
+          onSubmit={() => {}}
+          onCursorChange={onCursorChange}
+        />,
+      );
+
+      stdin.write("hello");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      stdin.write("\x01"); // Ctrl+A
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      const lastCall = onCursorChange.mock.calls.at(-1)?.[0];
+      expect(lastCall).toEqual([0, 0]);
+    });
+
+    it("Ctrl+E moves cursor to end of line", async () => {
+      const onCursorChange = vi.fn();
+      const { stdin } = render(
+        <TextArea
+          isActive={true}
+          onSubmit={() => {}}
+          onCursorChange={onCursorChange}
+        />,
+      );
+
+      stdin.write("hello");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      stdin.write("\x01"); // Ctrl+A first (go to start)
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      stdin.write("\x05"); // Ctrl+E
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      const lastCall = onCursorChange.mock.calls.at(-1)?.[0];
+      expect(lastCall).toEqual([0, 5]);
+    });
+
+    it("Ctrl+W deletes word before cursor", async () => {
+      const { stdin, lastFrame } = render(
+        <TextArea isActive={true} onSubmit={() => {}} />,
+      );
+
+      stdin.write("hello world");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      stdin.write("\x17"); // Ctrl+W
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(lastFrame()).toContain("hello ");
+      expect(lastFrame()).not.toContain("world");
+    });
+
+    it("Ctrl+U deletes to start of current line", async () => {
+      const { stdin, lastFrame } = render(
+        <TextArea isActive={true} onSubmit={() => {}} />,
+      );
+
+      stdin.write("hello world");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      stdin.write("\x15"); // Ctrl+U
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(lastFrame()).not.toContain("hello");
+      expect(lastFrame()).not.toContain("world");
+    });
+
+    it("Ctrl+K deletes to end of line", async () => {
+      const onCursorChange = vi.fn();
+      const { stdin, lastFrame } = render(
+        <TextArea
+          isActive={true}
+          onSubmit={() => {}}
+          onCursorChange={onCursorChange}
+        />,
+      );
+
+      stdin.write("hello world");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      stdin.write("\x01"); // Ctrl+A — go to start
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      stdin.write("\x0b"); // Ctrl+K
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(lastFrame()).not.toContain("hello");
+      expect(lastFrame()).not.toContain("world");
+    });
+
+    it("Opt+Left jumps to previous word boundary", async () => {
+      const onCursorChange = vi.fn();
+      const { stdin } = render(
+        <TextArea
+          isActive={true}
+          onSubmit={() => {}}
+          onCursorChange={onCursorChange}
+        />,
+      );
+
+      stdin.write("hello world");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      stdin.write("\x1bb"); // Opt+Left (meta+b)
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      const lastCall = onCursorChange.mock.calls.at(-1)?.[0];
+      // cursor should be at col 6 (start of 'world')
+      expect(lastCall).toEqual([0, 6]);
+    });
+
+    it("Opt+Right jumps to next word boundary", async () => {
+      const onCursorChange = vi.fn();
+      const { stdin } = render(
+        <TextArea
+          isActive={true}
+          onSubmit={() => {}}
+          onCursorChange={onCursorChange}
+        />,
+      );
+
+      stdin.write("hello world");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      stdin.write("\x01"); // Ctrl+A — go to start
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      stdin.write("\x1bf"); // Opt+Right (meta+f)
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      const lastCall = onCursorChange.mock.calls.at(-1)?.[0];
+      // findNextWordBoundary skips 'hello' and the space, lands at 'world' (col 6)
+      expect(lastCall).toEqual([0, 6]);
+    });
+  });
+
+  describe("Submit edge cases", () => {
+    it("Enter with empty text calls onSubmit with empty string", async () => {
+      const onSubmit = vi.fn();
+      const { stdin } = render(
+        <TextArea isActive={true} onSubmit={onSubmit} />,
+      );
+
+      stdin.write("\r");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(onSubmit).toHaveBeenCalledWith("");
+    });
+
+    it("Enter with multiline text passes full value including newlines", async () => {
+      const onSubmit = vi.fn();
+      const { stdin } = render(
+        <TextArea isActive={true} onSubmit={onSubmit} />,
+      );
+
+      stdin.write("line1");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      stdin.write("\x0A"); // Ctrl+J
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      stdin.write("line2");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      stdin.write("\r");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(onSubmit).toHaveBeenCalledWith("line1\nline2");
+    });
+  });
+
+  describe("autoNewLineLimit edge cases", () => {
+    it("autoNewLineLimit=0 never creates trailing empty lines via down arrow", async () => {
+      const onLastLineDown = vi.fn();
+      const { stdin, lastFrame } = render(
+        <TextArea
+          isActive={true}
+          onSubmit={() => {}}
+          autoNewLineLimit={0}
+          onLastLineDown={onLastLineDown}
+        />,
+      );
+
+      stdin.write("\x1b[B"); // Down
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      expect(onLastLineDown).toHaveBeenCalled();
+    });
+
+    it("autoNewLineLimit=1 allows exactly one trailing empty line", async () => {
+      const onLastLineDown = vi.fn();
+      const { stdin } = render(
+        <TextArea
+          isActive={true}
+          onSubmit={() => {}}
+          autoNewLineLimit={1}
+          onLastLineDown={onLastLineDown}
+          initialLineCount={1}
+        />,
+      );
+
+      stdin.write("text");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      stdin.write("\x1b[B"); // Down — creates one empty line
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      expect(onLastLineDown).not.toHaveBeenCalled();
+
+      stdin.write("\x1b[B"); // Down again — hits limit
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      expect(onLastLineDown).toHaveBeenCalled();
+    });
+  });
+
+  describe("Placeholder multiline", () => {
+    it("renders each line of a multiline placeholder", () => {
+      const { lastFrame } = render(
+        <TextArea
+          isActive={false}
+          onSubmit={() => {}}
+          placeholder={"line one\nline two"}
+          initialLineCount={2}
+        />,
+      );
+
+      const frame = lastFrame()!;
+      expect(frame).toContain("line one");
+      expect(frame).toContain("line two");
+    });
+
+    it("placeholder disappears when text is typed", async () => {
+      const { stdin, lastFrame } = render(
+        <TextArea
+          isActive={true}
+          onSubmit={() => {}}
+          placeholder="Type here..."
+        />,
+      );
+
+      stdin.write("x");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(lastFrame()).not.toContain("Type here...");
+    });
+  });
 });

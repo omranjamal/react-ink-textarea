@@ -22,9 +22,10 @@ export const LineNumber = ({
 }: LineNumberProps): ReactNode => {
   const width = String(totalLines).length;
   const num = String(lineNumber + 1).padStart(width, padChar);
+  
   return (
     <Text color={isActive ? activeColor : color} dimColor={!isActive}>
-      {num}
+      {isActive ? num : ''}
       {suffix}
     </Text>
   );

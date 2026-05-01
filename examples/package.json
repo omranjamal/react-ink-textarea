@@ -4,15 +4,18 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "basic": "tsx basic.tsx",
-    "with-prefix": "tsx with-prefix.tsx"
+    "basic": "tsx --conditions=development basic.tsx",
+    "with-prefix": "tsx --conditions=development with-prefix.tsx",
+    "wrap-text": "tsx --conditions=development wrap-text.tsx"
   },
   "dependencies": {
     "ink": "^7.0.1",
-    "ink-textarea": "file:..",
+    "ink-textarea": "workspace:*",
     "react": "^19.2.5"
   },
   "devDependencies": {
-    "tsx": "^4.0.0"
+    "@types/react": "^19.2.14",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3"
   }
 }

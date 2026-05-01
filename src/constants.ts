@@ -1,0 +1,6 @@
+export const DEFAULT_CURSOR_INTERVAL = 500;
+export const DEFAULT_TYPING_PAUSE = 450;
+export const DEFAULT_MAX_UNDO = 128;
+export const DEFAULT_UNDO_GROUP_DELAY = 2500;
+export const DEFAULT_AUTO_NEW_LINE_LIMIT = 3;
+export const DEFAULT_INITIAL_LINE_COUNT = 2;
