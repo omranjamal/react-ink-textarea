@@ -6,7 +6,7 @@ const DEFAULT_CURSOR_INTERVAL = 500;
 const DEFAULT_TYPING_PAUSE = 450;
 const DEFAULT_MAX_UNDO = 128;
 const DEFAULT_UNDO_GROUP_DELAY = 2500;
-const DEFAULT_MAX_TRAILING_EMPTY_LINES = 3;
+const DEFAULT_EMPTY_AUTOGROW_LIMIT = 3;
 
 const countTrailingEmptyLines = (text: string): number => {
   let count = 0;
@@ -88,7 +88,7 @@ export type TextAreaProps = {
   readonly typingPause?: number;
   readonly maxUndo?: number;
   readonly undoGroupDelay?: number;
-  readonly maxTrailingEmptyLines?: number;
+  readonly emptyAutogrowLimit?: number;
   readonly highlightActiveLine?: boolean;
   readonly activeLineColor?: string;
   readonly enableArrowNavigation?: boolean;
@@ -111,7 +111,7 @@ export const TextArea = ({
   typingPause = DEFAULT_TYPING_PAUSE,
   maxUndo = DEFAULT_MAX_UNDO,
   undoGroupDelay = DEFAULT_UNDO_GROUP_DELAY,
-  maxTrailingEmptyLines = DEFAULT_MAX_TRAILING_EMPTY_LINES,
+  emptyAutogrowLimit = DEFAULT_EMPTY_AUTOGROW_LIMIT,
   highlightActiveLine = false,
   activeLineColor = undefined,
   enableArrowNavigation = true,
@@ -239,7 +239,7 @@ export const TextArea = ({
         resetBlink();
         if (
           cursor >= value.length &&
-          countTrailingEmptyLines(value) >= maxTrailingEmptyLines
+          countTrailingEmptyLines(value) >= emptyAutogrowLimit
         ) {
           return;
         }
@@ -287,7 +287,7 @@ export const TextArea = ({
         const isOnLastLine = currentLineEnd >= value.length;
         resetBlink();
         if (isOnLastLine) {
-          if (countTrailingEmptyLines(value) >= maxTrailingEmptyLines) {
+          if (countTrailingEmptyLines(value) >= emptyAutogrowLimit) {
             if (onLastLineDown) {
               onLastLineDown();
               return;
