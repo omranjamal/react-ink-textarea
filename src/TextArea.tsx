@@ -187,9 +187,14 @@ export const TextArea = ({
     (input, key) => {
       // Ctrl+J, Ctrl+Enter, or Shift+Enter — insert newline
       // Also handle kitty keyboard protocol escape sequences
-      const isCtrlEnter = (key.return && key.ctrl) || input === "\x1b[27;5;13~";
+      const isCtrlEnter =
+        (key.return && key.ctrl) ||
+        input === "\x1b[27;5;13~" ||
+        input.endsWith("[27;5;13~");
       const isShiftEnter =
-        (key.return && key.shift) || input === "\x1b[27;2;13~";
+        (key.return && key.shift) ||
+        input === "\x1b[27;2;13~" ||
+        input.endsWith("[27;2;13~");
       if ((key.ctrl && input === "j") || isCtrlEnter || isShiftEnter) {
         resetBlink();
         if (
