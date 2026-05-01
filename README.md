@@ -99,6 +99,7 @@ import { LineNumber } from "ink-textarea";
 | `maxUndo`               | `number`                                                                                    | Maximum number of undo steps to retain. Defaults to `128`.                                                                                            |
 | `undoGroupDelay`        | `number`                                                                                    | Milliseconds to group consecutive edits into a single undo step. Defaults to `2500`.                                                                  |
 | `maxTrailingEmptyLines` | `number`                                                                                    | Maximum number of empty lines allowed after the last line with content. Prevents infinite growth when pressing Down arrow or Ctrl+J. Defaults to `3`. |
+| `enableArrowNavigation` | `boolean`                                                                                   | When `false`, disables cursor movement via arrow keys. Useful for implementing suggestion pickers. Defaults to `true`.                                |
 
 ## Keybindings
 

@@ -91,6 +91,7 @@ export type TextAreaProps = {
   readonly maxTrailingEmptyLines?: number;
   readonly highlightActiveLine?: boolean;
   readonly activeLineColor?: string;
+  readonly enableArrowNavigation?: boolean;
 };
 
 export const TextArea = ({
@@ -105,6 +106,7 @@ export const TextArea = ({
   maxTrailingEmptyLines = DEFAULT_MAX_TRAILING_EMPTY_LINES,
   highlightActiveLine = false,
   activeLineColor = undefined,
+  enableArrowNavigation = true,
 }: TextAreaProps): ReactNode => {
   const [value, setValue] = useState("");
   const [cursor, setCursor] = useState(0);
@@ -217,6 +219,7 @@ export const TextArea = ({
 
       // Up arrow — move to same column on previous line
       if (key.upArrow) {
+        if (!enableArrowNavigation) return;
         resetBlink();
         setCursor((c) => {
           const { line, column } = getCursorLineAndColumn(value, c);
@@ -233,6 +236,7 @@ export const TextArea = ({
 
       // Down arrow — move to next line, or create one if on last line
       if (key.downArrow) {
+        if (!enableArrowNavigation) return;
         resetBlink();
         const currentLineEnd = findLineEnd(value, cursor);
         if (currentLineEnd >= value.length) {
@@ -258,6 +262,7 @@ export const TextArea = ({
 
       // Left arrow
       if (key.leftArrow) {
+        if (!enableArrowNavigation) return;
         resetBlink();
         setCursor((c) => Math.max(0, c - 1));
         return;
@@ -265,6 +270,7 @@ export const TextArea = ({
 
       // Right arrow
       if (key.rightArrow) {
+        if (!enableArrowNavigation) return;
         resetBlink();
         setCursor((c) => Math.min(value.length, c + 1));
         return;
