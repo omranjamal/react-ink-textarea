@@ -25,7 +25,7 @@ export const LineNumber = ({
 
   return (
     <Text color={isActive ? activeColor : color} dimColor={!isActive}>
-      {isActive ? num : ' '.padStart(width, padChar)}
+      {num}
       {suffix}
     </Text>
   );

@@ -7,6 +7,10 @@ import {
   findNextWordBoundary,
   getCursorLineAndColumn,
   getCursorFromLineColumn,
+  chunkString,
+  buildChunkedCursorLine,
+  computeVisualUpCursor,
+  computeVisualDownCursor,
 } from "../src/textUtils.js";
 
 describe("countTrailingEmptyLines", () => {
@@ -229,5 +233,215 @@ describe("getCursorFromLineColumn", () => {
     const result = getCursorFromLineColumn("hello\nworld", 0, Infinity);
     expect(result.clampedLine).toBe(0);
     expect(result.clampedCol).toBe(5);
+  });
+});
+
+describe("chunkString", () => {
+  it("returns array with empty string for empty input", () => {
+    expect(chunkString("", 10)).toEqual([""]);
+  });
+
+  it("returns original string when width is 0", () => {
+    expect(chunkString("hello", 0)).toEqual(["hello"]);
+  });
+
+  it("returns single chunk when text is shorter than width", () => {
+    expect(chunkString("hello", 10)).toEqual(["hello"]);
+  });
+
+  it("returns single chunk when text equals width", () => {
+    expect(chunkString("hello", 5)).toEqual(["hello"]);
+  });
+
+  it("splits into two chunks when text exceeds width", () => {
+    expect(chunkString("abcdef", 5)).toEqual(["abcde", "f"]);
+  });
+
+  it("splits evenly into equal chunks", () => {
+    expect(chunkString("abcdefghij", 5)).toEqual(["abcde", "fghij"]);
+  });
+
+  it("last chunk is shorter when not evenly divisible", () => {
+    expect(chunkString("abcdefgh", 5)).toEqual(["abcde", "fgh"]);
+  });
+
+  it("splits into three chunks", () => {
+    expect(chunkString("abcdefghijklmno", 5)).toEqual([
+      "abcde",
+      "fghij",
+      "klmno",
+    ]);
+  });
+
+  it("splits at width=1 into individual characters", () => {
+    expect(chunkString("abc", 1)).toEqual(["a", "b", "c"]);
+  });
+});
+
+describe("buildChunkedCursorLine", () => {
+  const strip = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, "");
+
+  it("no chunking (lineWidth=0): places cursor correctly in text", () => {
+    const result = buildChunkedCursorLine("hello", 2, 0, true);
+    expect(result).toContain("\x1b[7ml\x1b[27m");
+    expect(strip(result)).toBe("hello");
+  });
+
+  it("cursor at end renders highlighted space when visible", () => {
+    const result = buildChunkedCursorLine("hi", 2, 0, true);
+    expect(result).toContain("\x1b[7m \x1b[27m");
+    expect(strip(result)).toBe("hi ");
+  });
+
+  it("cursor invisible at end renders plain space", () => {
+    expect(buildChunkedCursorLine("hi", 2, 0, false)).toBe("hi ");
+  });
+
+  it("cursor invisible on a character renders that character", () => {
+    expect(buildChunkedCursorLine("hello", 1, 0, false)).toBe("hello");
+  });
+
+  it("with lineWidth: joins chunks with newlines", () => {
+    const result = buildChunkedCursorLine("abcdefghij", 0, 5, false);
+    expect(result.split("\n")).toHaveLength(2);
+  });
+
+  it("cursor in first chunk places ANSI correctly, second chunk is plain", () => {
+    // text="abcdefghij", cursor=2, lineWidth=5 → cursor on 'c' in chunk 0
+    const result = buildChunkedCursorLine("abcdefghij", 2, 5, true);
+    const lines = result.split("\n");
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toContain("\x1b[7mc\x1b[27m");
+    expect(strip(lines[0]!)).toBe("abcde");
+    expect(lines[1]).toBe("fghij");
+  });
+
+  it("cursor in second chunk places ANSI correctly, first chunk is plain", () => {
+    // text="abcdefghij", cursor=7, lineWidth=5 → cursor on 'h' (posInChunk=2) in chunk 1
+    const result = buildChunkedCursorLine("abcdefghij", 7, 5, true);
+    const lines = result.split("\n");
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toBe("abcde");
+    expect(lines[1]).toContain("\x1b[7mh\x1b[27m");
+    expect(strip(lines[1]!)).toBe("fghij");
+  });
+
+  it("cursor at exact lineWidth boundary creates extra chunk with cursor space", () => {
+    // text="abcde" (5 chars), cursor=5, lineWidth=5 → cursor space in chunk 1
+    const result = buildChunkedCursorLine("abcde", 5, 5, true);
+    const lines = result.split("\n");
+    expect(lines).toHaveLength(2);
+    expect(strip(lines[0]!)).toBe("abcde");
+    expect(lines[1]).toContain("\x1b[7m \x1b[27m");
+  });
+
+  it("empty text with lineWidth renders cursor space in single chunk", () => {
+    const result = buildChunkedCursorLine("", 0, 5, true);
+    expect(result).toContain("\x1b[7m \x1b[27m");
+    expect(result.split("\n")).toHaveLength(1);
+  });
+});
+
+describe("computeVisualUpCursor", () => {
+  it("on visual row 0 of logical line 0: returns line start", () => {
+    // "abcde", lineWidth=5, cursor=2 → row 0, col 2 → can't go up, returns 0
+    expect(computeVisualUpCursor("abcde", 2, 5)).toBe(0);
+  });
+
+  it("moves up within same logical line (row 1 → row 0)", () => {
+    // "abcdefghij", lineWidth=5, cursor=7 → row 1, vCol 2 → row 0, vCol 2 → position 2
+    expect(computeVisualUpCursor("abcdefghij", 7, 5)).toBe(2);
+  });
+
+  it("preserves visual column when moving up within logical line", () => {
+    // "abcdefghijklmno", lineWidth=5, cursor=12 → row 2, vCol 2 → row 1, vCol 2 → 7
+    expect(computeVisualUpCursor("abcdefghijklmno", 12, 5)).toBe(7);
+  });
+
+  it("moves from visual row 0 of logical line 1 to last visual row of line 0", () => {
+    // "abcdefghij\nklmno", lineWidth=5, cursor=11 ('k') → line 1, row 0, vCol 0
+    // prev line "abcdefghij" (10 chars), prevLastVRow=2, target=2*5+0=10 → clamped to 10 ('\n')
+    expect(computeVisualUpCursor("abcdefghij\nklmno", 11, 5)).toBe(10);
+  });
+
+  it("preserves visual column when crossing logical line boundary", () => {
+    // "abcdefghij\nklmno", lineWidth=5, cursor=13 ('m') → line 1, row 0, vCol 2
+    // prev line "abcdefghij" (10 chars), prevLastVRow=2, target=2*5+2=12 > 10 → clamp to 10
+    expect(computeVisualUpCursor("abcdefghij\nklmno", 13, 5)).toBe(10);
+  });
+
+  it("clamps to prev line end when visual column exceeds prev line length", () => {
+    // "ab\ncdefghij", lineWidth=5, cursor=7 ('h') → line 1, col 4, row 0, vCol 4
+    // prev line "ab" (length 2), prevLastVRow=0, target=0*5+4=4 → clamp to min(4,2)=2
+    expect(computeVisualUpCursor("ab\ncdefghij", 7, 5)).toBe(2);
+  });
+
+  it("with lineWidth larger than line: moves to previous logical line directly", () => {
+    // "hello\nworld", lineWidth=10, cursor=6 ('w') → line 1, row 0, vCol 0
+    // prev line "hello" (5 chars), prevLastVRow=0, target=0*10+0=0 → pos 0
+    expect(computeVisualUpCursor("hello\nworld", 6, 10)).toBe(0);
+  });
+});
+
+describe("computeVisualDownCursor", () => {
+  it("moves down within same logical line (row 0 → row 1)", () => {
+    // "abcdefghij", lineWidth=5, cursor=2 → row 0, vCol 2 → row 1: min(5+2, 10)=7
+    expect(computeVisualDownCursor("abcdefghij", 2, 5)).toBe(7);
+  });
+
+  it("preserves visual column when moving down within logical line", () => {
+    // "abcdefghijklmno", lineWidth=5, cursor=7 → row 1, vCol 2 → row 2: min(10+2,15)=12
+    expect(computeVisualDownCursor("abcdefghijklmno", 7, 5)).toBe(12);
+  });
+
+  it("clamps to line end when next visual row exceeds content", () => {
+    // "abcde", lineWidth=5, cursor=2 → row 0, vCol 2, lastVRow=1
+    // row 0 < 1 → min(0+5+2, 5)=min(7,5)=5
+    expect(computeVisualDownCursor("abcde", 2, 5)).toBe(5);
+  });
+
+  it("moves to next logical line from last visual row", () => {
+    // "abcde\nfghij", lineWidth=5, cursor=5 ('\n', end of line 0, row 1, vCol 0)
+    // vRow=1, lastVRow=1 → not < lastVRow → next line: min(6+0, 11)=6
+    expect(computeVisualDownCursor("abcde\nfghij", 5, 5)).toBe(6);
+  });
+
+  it("preserves visual column when moving to next logical line", () => {
+    // "abcde\nfghij", lineWidth=5, cursor=5 with vCol=0 → position 6 (start of fghij)
+    // Try with a longer first line so we can have vCol > 0 at last row
+    // "abcdefghij\nklmno", lineWidth=5, cursor=10 ('\n', vRow=2, vCol=0)
+    // next line: min(11+0, 16)=11
+    expect(computeVisualDownCursor("abcdefghij\nklmno", 10, 5)).toBe(11);
+  });
+
+  it("clamps visual column to next line end when shorter", () => {
+    // "abcdefghij\nkl", lineWidth=5, cursor=10 ('\n', vRow=2, vCol=0)
+    // next line "kl" (2 chars), nextLineEnd=13
+    // min(11+0, 13)=11 (start of "kl")
+    // Now try vCol > next line length:
+    // "abcdefghij\nkl", lineWidth=5, cursor=9 ('j', vRow=1, vCol=4)
+    // lastVRow = floor(10/5)=2. vRow(1) < 2 → min(0+10+4, 10)=min(14,10)=10 (line end '\n')
+    // Hmm, that moves within same line. Let me try cursor at '\n' with vCol=3:
+    // Need cursor past last visual row. "abcde\nkl", lineWidth=5, cursor=5, vRow=1, vCol=0
+    // but also need vCol preserved across lines...
+    // "abcdefgh\nkl", lineWidth=5, cursor=8 ('\n', col=8, vRow=1, vCol=3)
+    // lastVRow = floor(8/5)=1. vRow(1) NOT < 1 → next line
+    // next line "kl" (2 chars). min(9+3, 11)=min(12,11)=11 → clamps to line end
+    expect(computeVisualDownCursor("abcdefgh\nkl", 8, 5)).toBe(11);
+  });
+
+  it("returns null on last logical line when past all visual rows", () => {
+    // "abcde", lineWidth=5, cursor=5 (end) → vRow=1, lastVRow=1 → last line → null
+    expect(computeVisualDownCursor("abcde", 5, 5)).toBeNull();
+  });
+
+  it("returns null on single-line text when past all visual rows", () => {
+    // "hello", lineWidth=10, cursor=5 → vRow=0, lastVRow=floor(5/10)=0 → last line → null
+    expect(computeVisualDownCursor("hello", 5, 10)).toBeNull();
+  });
+
+  it("returns null on last logical line of multiline text", () => {
+    // "line1\nline2", lineWidth=10, cursor=11 (end) → last logical line → null
+    expect(computeVisualDownCursor("line1\nline2", 11, 10)).toBeNull();
   });
 });

@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { render } from "ink-testing-library";
 import { TextArea, LineNumber } from "../src/index.js";
+import type { TLinePrefixProps } from "../src/index.js";
 import { Text } from "ink";
-import React from "react";
 
 describe("TextArea", () => {
   it("renders placeholder when empty and inactive", () => {
@@ -123,7 +123,7 @@ describe("TextArea", () => {
   });
 
   it("passes props object to linePrefix function", async () => {
-    const linePrefix = vi.fn(() => <Text>{"> "}</Text>);
+    const linePrefix = vi.fn((_props: TLinePrefixProps) => <Text>{"> "}</Text>);
     const { stdin } = render(
       <TextArea isActive={true} onSubmit={() => {}} linePrefix={linePrefix} />,
     );
@@ -134,12 +134,7 @@ describe("TextArea", () => {
     expect(linePrefix).toHaveBeenCalled();
     const lastCall = linePrefix.mock.calls[linePrefix.mock.calls.length - 1];
     expect(lastCall).toHaveLength(1);
-    const props = lastCall![0] as {
-      lineNumber: number;
-      totalLines: number;
-      isActiveLine: boolean;
-      isVirtualLine: boolean;
-    };
+    const props = lastCall![0];
     expect(typeof props.lineNumber).toBe("number");
     expect(typeof props.totalLines).toBe("number");
     expect(typeof props.isActiveLine).toBe("boolean");
@@ -656,7 +651,7 @@ describe("TextArea", () => {
 
   describe("Virtual Line Detection", () => {
     it("marks initial padding lines as virtual when no content exists", async () => {
-      const linePrefix = vi.fn(() => <Text>{"> "}</Text>);
+      const linePrefix = vi.fn((_props: TLinePrefixProps) => <Text>{"> "}</Text>);
       render(
         <TextArea
           isActive={true}
@@ -687,7 +682,7 @@ describe("TextArea", () => {
     });
 
     it("marks lines created by down navigation as real", async () => {
-      const linePrefix = vi.fn(() => <Text>{"> "}</Text>);
+      const linePrefix = vi.fn((_props: TLinePrefixProps) => <Text>{"> "}</Text>);
       const { stdin } = render(
         <TextArea
           isActive={true}
@@ -716,7 +711,7 @@ describe("TextArea", () => {
     });
 
     it("marks lines with content as non-virtual", async () => {
-      const linePrefix = vi.fn(() => <Text>{"> "}</Text>);
+      const linePrefix = vi.fn((_props: TLinePrefixProps) => <Text>{"> "}</Text>);
       const { stdin } = render(
         <TextArea
           isActive={true}
@@ -748,7 +743,7 @@ describe("TextArea", () => {
     });
 
     it("correctly identifies virtual vs real lines in mixed state", async () => {
-      const linePrefix = vi.fn(() => <Text>{"> "}</Text>);
+      const linePrefix = vi.fn((_props: TLinePrefixProps) => <Text>{"> "}</Text>);
       const { stdin } = render(
         <TextArea
           isActive={true}
@@ -917,7 +912,7 @@ describe("TextArea", () => {
       stdin.write("\x01"); // Ctrl+A
       await new Promise((resolve) => setTimeout(resolve, 50));
 
-      const lastCall = onCursorChange.mock.calls.at(-1)?.[0];
+      const lastCall = onCursorChange.mock.calls[onCursorChange.mock.calls.length - 1]?.[0];
       expect(lastCall).toEqual([0, 0]);
     });
 
@@ -940,7 +935,7 @@ describe("TextArea", () => {
       stdin.write("\x05"); // Ctrl+E
       await new Promise((resolve) => setTimeout(resolve, 50));
 
-      const lastCall = onCursorChange.mock.calls.at(-1)?.[0];
+      const lastCall = onCursorChange.mock.calls[onCursorChange.mock.calls.length - 1]?.[0];
       expect(lastCall).toEqual([0, 5]);
     });
 
@@ -1013,7 +1008,7 @@ describe("TextArea", () => {
       stdin.write("\x1bb"); // Opt+Left (meta+b)
       await new Promise((resolve) => setTimeout(resolve, 50));
 
-      const lastCall = onCursorChange.mock.calls.at(-1)?.[0];
+      const lastCall = onCursorChange.mock.calls[onCursorChange.mock.calls.length - 1]?.[0];
       // cursor should be at col 6 (start of 'world')
       expect(lastCall).toEqual([0, 6]);
     });
@@ -1037,7 +1032,7 @@ describe("TextArea", () => {
       stdin.write("\x1bf"); // Opt+Right (meta+f)
       await new Promise((resolve) => setTimeout(resolve, 50));
 
-      const lastCall = onCursorChange.mock.calls.at(-1)?.[0];
+      const lastCall = onCursorChange.mock.calls[onCursorChange.mock.calls.length - 1]?.[0];
       // findNextWordBoundary skips 'hello' and the space, lands at 'world' (col 6)
       expect(lastCall).toEqual([0, 6]);
     });
@@ -1078,7 +1073,7 @@ describe("TextArea", () => {
   describe("autoNewLineLimit edge cases", () => {
     it("autoNewLineLimit=0 never creates trailing empty lines via down arrow", async () => {
       const onLastLineDown = vi.fn();
-      const { stdin, lastFrame } = render(
+      const { stdin } = render(
         <TextArea
           isActive={true}
           onSubmit={() => {}}
@@ -1117,6 +1112,96 @@ describe("TextArea", () => {
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       expect(onLastLineDown).toHaveBeenCalled();
+    });
+  });
+
+  describe("onDimensions", () => {
+    it("accepts onDimensions prop without error", async () => {
+      const onDimensions = vi.fn();
+      const { stdin, lastFrame } = render(
+        <TextArea
+          isActive={true}
+          onSubmit={() => {}}
+          onDimensions={onDimensions}
+        />,
+      );
+
+      stdin.write("hello");
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Component renders correctly regardless of measurement environment
+      expect(lastFrame()).toContain("hello");
+    });
+
+    it("onDimensions not called when measuredWidth is 0 (test environment)", async () => {
+      const onDimensions = vi.fn();
+      const { stdin } = render(
+        <TextArea
+          isActive={true}
+          onSubmit={() => {}}
+          onDimensions={onDimensions}
+        />,
+      );
+
+      stdin.write("hello");
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // useBoxMetrics returns 0 in test env, so onDimensions should not be called
+      expect(onDimensions).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("Character-level chunking", () => {
+    it("renders text correctly when lineWidth is 0 (before measurement)", async () => {
+      const { stdin, lastFrame } = render(
+        <TextArea isActive={true} onSubmit={() => {}} />,
+      );
+
+      stdin.write("hello world");
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      expect(lastFrame()).toContain("hello");
+      expect(lastFrame()).toContain("world");
+    });
+
+    it("renders multiline text with correct line count", async () => {
+      const { stdin, lastFrame } = render(
+        <TextArea isActive={true} onSubmit={() => {}} />,
+      );
+
+      stdin.write("line1");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      stdin.write("\x0A"); // Ctrl+J
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      stdin.write("line2");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(lastFrame()).toContain("line1");
+      expect(lastFrame()).toContain("line2");
+    });
+  });
+
+  describe("LineNumber always shows number", () => {
+    it("renders number when inactive", () => {
+      const { lastFrame } = render(
+        <LineNumber lineNumber={0} totalLines={10} isActive={false} />,
+      );
+      expect(lastFrame()).toContain("1");
+    });
+
+    it("renders number when active", () => {
+      const { lastFrame } = render(
+        <LineNumber lineNumber={4} totalLines={10} isActive={true} />,
+      );
+      expect(lastFrame()).toContain("5");
+    });
+
+    it("pads number to match totalLines digit width", () => {
+      const { lastFrame } = render(
+        <LineNumber lineNumber={0} totalLines={100} isActive={false} />,
+      );
+      // Should be padded to 3 digits: "  1"
+      expect(lastFrame()).toContain("  1");
     });
   });
 

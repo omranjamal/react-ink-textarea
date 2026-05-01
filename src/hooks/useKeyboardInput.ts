@@ -6,6 +6,8 @@ import {
   findPrevWordBoundary,
   findNextWordBoundary,
   getCursorLineAndColumn,
+  computeVisualUpCursor,
+  computeVisualDownCursor,
 } from "../textUtils.js";
 
 type UseKeyboardInputOptions = {
@@ -26,6 +28,7 @@ type UseKeyboardInputOptions = {
   popUndo: () => { value: string; cursor: number } | undefined;
   resetMutationTracking: () => void;
   resetBlink: () => void;
+  lineWidth: number;
 };
 
 export const useKeyboardInput = ({
@@ -43,6 +46,7 @@ export const useKeyboardInput = ({
   popUndo,
   resetMutationTracking,
   resetBlink,
+  lineWidth,
 }: UseKeyboardInputOptions): void => {
   useInput(
     (input, key) => {
@@ -79,57 +83,77 @@ export const useKeyboardInput = ({
 
       if (key.upArrow) {
         if (!enableArrowNavigation) return;
-        const { line } = getCursorLineAndColumn(value, cursor);
-        if (line === 0 && onFirstLineUp) {
-          onFirstLineUp();
-          return;
-        }
-        resetBlink();
-        setCursor((c) => {
-          const { line: currentLine, column } = getCursorLineAndColumn(
-            value,
-            c,
-          );
-          if (currentLine === 0) {
-            return findLineStart(value, c);
+        const { line, column } = getCursorLineAndColumn(value, cursor);
+
+        if (lineWidth > 0) {
+          const visualRow = Math.floor(column / lineWidth);
+          if (line === 0 && visualRow === 0) {
+            if (onFirstLineUp) onFirstLineUp();
+            return;
           }
-          const prevLineEnd = findLineStart(value, c) - 1;
-          const prevLineStart = findLineStart(value, prevLineEnd);
-          const prevLineLength = prevLineEnd - prevLineStart;
-          return prevLineStart + Math.min(column, prevLineLength);
-        });
+          resetBlink();
+          setCursor((c) => computeVisualUpCursor(value, c, lineWidth));
+        } else {
+          if (line === 0) {
+            if (onFirstLineUp) onFirstLineUp();
+            return;
+          }
+          resetBlink();
+          setCursor((c) => {
+            const { line: currentLine, column: col } = getCursorLineAndColumn(value, c);
+            if (currentLine === 0) return findLineStart(value, c);
+            const prevLineEnd = findLineStart(value, c) - 1;
+            const prevLineStart = findLineStart(value, prevLineEnd);
+            const prevLineLength = prevLineEnd - prevLineStart;
+            return prevLineStart + Math.min(col, prevLineLength);
+          });
+        }
         return;
       }
 
       if (key.downArrow) {
         if (!enableArrowNavigation) return;
-        const currentLineEnd = findLineEnd(value, cursor);
-        const isOnLastLine = currentLineEnd >= value.length;
         resetBlink();
-        if (isOnLastLine) {
-          const trailingEmpty = countTrailingEmptyLines(value);
 
-          if (trailingEmpty >= autoNewLineLimit) {
-            if (onLastLineDown) {
-              onLastLineDown();
+        if (lineWidth > 0) {
+          const newPos = computeVisualDownCursor(value, cursor, lineWidth);
+          if (newPos !== null) {
+            setCursor(newPos);
+          } else {
+            const trailingEmpty = countTrailingEmptyLines(value);
+            if (trailingEmpty >= autoNewLineLimit) {
+              if (onLastLineDown) { onLastLineDown(); return; }
+              setCursor(value.length);
               return;
             }
-            setCursor(value.length);
-            return;
+            pushUndo("insert", value, cursor);
+            const newValue = value + "\n";
+            setValue(newValue);
+            setCursor(newValue.length, newValue);
           }
-
-          pushUndo("insert", value, cursor);
-          const newValue = value + "\n";
-          setValue(newValue);
-          setCursor(newValue.length, newValue);
         } else {
-          setCursor((c) => {
-            const { column } = getCursorLineAndColumn(value, c);
-            const nextLineStart = currentLineEnd + 1;
-            const nextLineEnd = findLineEnd(value, nextLineStart);
-            const nextLineLength = nextLineEnd - nextLineStart;
-            return nextLineStart + Math.min(column, nextLineLength);
-          });
+          const currentLineEnd = findLineEnd(value, cursor);
+          const isOnLastLine = currentLineEnd >= value.length;
+          if (isOnLastLine) {
+            const trailingEmpty = countTrailingEmptyLines(value);
+            if (trailingEmpty >= autoNewLineLimit) {
+              if (onLastLineDown) { onLastLineDown(); return; }
+              setCursor(value.length);
+              return;
+            }
+            pushUndo("insert", value, cursor);
+            const newValue = value + "\n";
+            setValue(newValue);
+            setCursor(newValue.length, newValue);
+          } else {
+            setCursor((c) => {
+              const { column } = getCursorLineAndColumn(value, c);
+              const nextLineStart = currentLineEnd + 1;
+              const nextLineEnd = findLineEnd(value, nextLineStart);
+              const nextLineLength = nextLineEnd - nextLineStart;
+              return nextLineStart + Math.min(column, nextLineLength);
+            });
+          }
         }
         return;
       }

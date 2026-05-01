@@ -1,4 +1,6 @@
-import { Box, Text } from "ink";
+import { Box, Text, useBoxMetrics } from "ink";
+import type { DOMElement } from "ink";
+import { useRef, useState, useEffect } from "react";
 import type { ReactNode } from "react";
 import {
   DEFAULT_CURSOR_INTERVAL,
@@ -8,7 +10,11 @@ import {
   DEFAULT_AUTO_NEW_LINE_LIMIT,
   DEFAULT_INITIAL_LINE_COUNT,
 } from "./constants.js";
-import { getCursorLineAndColumn } from "./textUtils.js";
+import {
+  getCursorLineAndColumn,
+  chunkString,
+  buildChunkedCursorLine,
+} from "./textUtils.js";
 import { useCursorState } from "./hooks/useCursorState.js";
 import { useUndo } from "./hooks/useUndo.js";
 import { useCursorBlink } from "./hooks/useCursorBlink.js";
@@ -35,6 +41,7 @@ export const TextArea = ({
   onFirstLineUp,
   onLastLineDown,
   initialLineCount = DEFAULT_INITIAL_LINE_COUNT,
+  onDimensions,
 }: TextAreaProps): ReactNode => {
   const { value, cursor, setValue, setCursor } = useCursorState({
     controlledValue,
@@ -42,6 +49,26 @@ export const TextArea = ({
     onChange,
     onCursorChange,
   });
+
+  const lines = value.split("\n");
+
+  const contentRef = useRef<DOMElement | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { width: measuredWidth } = useBoxMetrics(contentRef as any);
+  const [lineWidth, setLineWidth] = useState(0);
+
+  useEffect(() => {
+    if (measuredWidth > 0) {
+      setLineWidth((prev) => (prev === measuredWidth ? prev : measuredWidth));
+    }
+  }, [measuredWidth]);
+
+  useEffect(() => {
+    if (measuredWidth > 0) {
+      onDimensions?.(measuredWidth);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lines.length]);
 
   const { pushUndo, popUndo, resetMutationTracking } = useUndo({
     maxUndo,
@@ -69,9 +96,9 @@ export const TextArea = ({
     popUndo,
     resetMutationTracking,
     resetBlink,
+    lineWidth,
   });
 
-  const lines = value.split("\n");
   const totalLines = Math.max(lines.length, initialLineCount);
   const hasContent = value.replace(/\n/g, "").length > 0;
   const { line: cursorLine, column: cursorColumn } = getCursorLineAndColumn(
@@ -85,6 +112,7 @@ export const TextArea = ({
     lineNumber: number,
     totalLinesArg: number,
     isVirtualLine: boolean,
+    ref?: { current: DOMElement | null },
   ): ReactNode => {
     const isActiveLine = isActive && lineNumber === cursorLine;
     const prefixProps: TLinePrefixProps = {
@@ -102,10 +130,13 @@ export const TextArea = ({
       <Box
         key={key}
         width="100%"
+        flexDirection="row"
         backgroundColor={isHighlighted ? activeLineColor : undefined}
       >
-        {prefix}
-        {content}
+        <Box flexShrink={0}>{prefix}</Box>
+        <Box ref={ref} flexGrow={1}>
+          {content}
+        </Box>
       </Box>
     ) : (
       <Box
@@ -113,7 +144,9 @@ export const TextArea = ({
         width="100%"
         backgroundColor={isHighlighted ? activeLineColor : undefined}
       >
-        {content}
+        <Box ref={ref} flexGrow={1}>
+          {content}
+        </Box>
       </Box>
     );
   };
@@ -130,6 +163,7 @@ export const TextArea = ({
             i,
             initialLineCount,
             i > 0,
+            i === 0 ? contentRef : undefined,
           ),
         )}
       </Box>
@@ -151,6 +185,7 @@ export const TextArea = ({
             i,
             initialLineCount,
             i > 0,
+            i === 0 ? contentRef : undefined,
           ),
         )}
       </Box>
@@ -167,9 +202,12 @@ export const TextArea = ({
     const isVirtualLine = lineIdx >= lines.length;
 
     if (!isCursorLine || !isActive) {
+      const displayText = lineWidth > 0
+        ? chunkString(lineText, lineWidth).join("\n") || " "
+        : lineText || " ";
       return renderLine(
         <Text>
-          {lineText || " "}
+          {displayText}
           {placeholderLines[lineIdx] && !hasContent ? (
             <Text dimColor>{placeholderLines[lineIdx]}</Text>
           ) : null}
@@ -178,22 +216,13 @@ export const TextArea = ({
         lineIdx,
         totalLines,
         isVirtualLine,
+        lineIdx === 0 ? contentRef : undefined,
       );
     }
 
-    const before = lineText.slice(0, cursorColumn);
-    const atCursor = lineText[cursorColumn] ?? " ";
-    const after = lineText.slice(cursorColumn + 1);
-
     return renderLine(
       <Text>
-        {before}
-        {cursorVisible
-          ? `\x1b[7m${atCursor}\x1b[27m`
-          : atCursor === " " && cursorColumn >= lineText.length
-            ? " "
-            : atCursor}
-        {after}
+        {buildChunkedCursorLine(lineText, cursorColumn, lineWidth, cursorVisible)}
         {placeholderLines[lineIdx] && !hasContent ? (
           <Text dimColor>{placeholderLines[lineIdx]}</Text>
         ) : null}
@@ -202,6 +231,7 @@ export const TextArea = ({
       lineIdx,
       totalLines,
       isVirtualLine,
+      lineIdx === 0 ? contentRef : undefined,
     );
   });
 

@@ -33,4 +33,5 @@ export type TextAreaProps = {
   readonly onLastLineDown?: () => void;
   // Initial line count
   readonly initialLineCount?: number;
+  readonly onDimensions?: (width: number) => void;
 };

@@ -8,6 +8,7 @@ const App = () => {
   const [boundaryMessage, setBoundaryMessage] = useState<string | null>(null);
   const [charCount, setCharCount] = useState(0);
   const [cursorPos, setCursorPos] = useState<[number, number]>([0, 0]);
+  const [lineWidth, setLineWidth] = useState(0);
 
   const showBoundaryMessage = (message: string) => {
     setBoundaryMessage(message);
@@ -37,6 +38,7 @@ Ctrl+Enter for new line`}
         onLastLineDown={() => showBoundaryMessage("[last line down]")}
         onChange={(value) => setCharCount(value.length)}
         onCursorChange={setCursorPos}
+        onDimensions={setLineWidth}
         linePrefix={({
           lineNumber,
           totalLines,
@@ -58,7 +60,7 @@ Ctrl+Enter for new line`}
       />
 
       <Text dimColor>
-        {charCount} characters | Line {cursorPos[0] + 1}, Col {cursorPos[1] + 1}
+        {charCount} characters | Line {cursorPos[0] + 1}, Col {cursorPos[1] + 1} | Width {lineWidth}
       </Text>
 
       {boundaryMessage && (
