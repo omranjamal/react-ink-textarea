@@ -105,6 +105,8 @@ import { LineNumber } from "ink-textarea";
 | Key             | Action                         |
 | --------------- | ------------------------------ |
 | `Ctrl+J`        | Insert newline                 |
+| `Ctrl+Enter`    | Insert newline                 |
+| `Shift+Enter`   | Insert newline                 |
 | `Enter`         | Submit                         |
 | `↑` / `↓`       | Move cursor between lines      |
 | `←` / `→`       | Move cursor left / right       |

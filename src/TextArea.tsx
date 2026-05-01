@@ -185,8 +185,11 @@ export const TextArea = ({
 
   useInput(
     (input, key) => {
-      // Ctrl+J — insert newline
-      if (key.ctrl && input === "j") {
+      // Ctrl+J, Ctrl+Enter, or Shift+Enter — insert newline
+      if (
+        (key.ctrl && input === "j") ||
+        (key.return && (key.ctrl || key.shift))
+      ) {
         resetBlink();
         if (
           cursor >= value.length &&
