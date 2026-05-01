@@ -431,26 +431,31 @@ describe("TextArea", () => {
       expect(onFirstLineUp).toHaveBeenCalled();
     });
 
-    it("calls onLastLineDown when pressing down on last line", async () => {
+    it("calls onLastLineDown when pressing down after reaching max trailing empty lines", async () => {
       const onLastLineDown = vi.fn();
-      const onChange = vi.fn();
-      const { stdin } = render(
+      const { stdin, lastFrame } = render(
         <TextArea
           isActive={true}
           onSubmit={() => {}}
-          value="hello"
-          cursorPosition={3}
-          onChange={onChange}
+          placeholder="Type here..."
           onLastLineDown={onLastLineDown}
+          maxTrailingEmptyLines={2}
         />,
       );
 
+      // First two Down presses should autogrow (create empty lines)
+      stdin.write("\x1b[B"); // Down arrow - creates first empty line
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      stdin.write("\x1b[B"); // Down arrow - creates second empty line
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(onLastLineDown).not.toHaveBeenCalled();
+
+      // Third Down press should trigger onLastLineDown (max reached)
       stdin.write("\x1b[B"); // Down arrow
       await new Promise((resolve) => setTimeout(resolve, 50));
 
       expect(onLastLineDown).toHaveBeenCalled();
-      // Should not autogrow when handler is provided
-      expect(onChange).not.toHaveBeenCalled();
     });
 
     it("still allows normal up navigation when onFirstLineUp is not provided", async () => {

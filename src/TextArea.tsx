@@ -285,13 +285,13 @@ export const TextArea = ({
         if (!enableArrowNavigation) return;
         const currentLineEnd = findLineEnd(value, cursor);
         const isOnLastLine = currentLineEnd >= value.length;
-        if (isOnLastLine && onLastLineDown) {
-          onLastLineDown();
-          return;
-        }
         resetBlink();
         if (isOnLastLine) {
           if (countTrailingEmptyLines(value) >= maxTrailingEmptyLines) {
+            if (onLastLineDown) {
+              onLastLineDown();
+              return;
+            }
             setCursor(value.length);
             return;
           }
