@@ -100,6 +100,28 @@ import { LineNumber } from "ink-textarea";
 | `undoGroupDelay`        | `number`                                                                                    | Milliseconds to group consecutive edits into a single undo step. Defaults to `2500`.                                                                  |
 | `maxTrailingEmptyLines` | `number`                                                                                    | Maximum number of empty lines allowed after the last line with content. Prevents infinite growth when pressing Down arrow or Ctrl+J. Defaults to `3`. |
 | `enableArrowNavigation` | `boolean`                                                                                   | When `false`, disables cursor movement via arrow keys. Useful for implementing suggestion pickers. Defaults to `true`.                                |
+| `value`                 | `string`                                                                                    | **Controlled mode**: The current value of the textarea. When provided, component operates in controlled mode.                                         |
+| `cursorPosition`        | `number`                                                                                    | **Controlled mode**: The current cursor position. Use with `value` for full control.                                                                  |
+| `onChange`              | `(value: string) => void`                                                                   | **Controlled mode**: Called when the value changes.                                                                                                   |
+| `onCursorChange`        | `(position: number) => void`                                                                | **Controlled mode**: Called when the cursor position changes.                                                                                         |
+
+### Controlled Mode
+
+Use controlled mode when you need to manage the textarea state externally:
+
+```tsx
+const [value, setValue] = useState("");
+const [cursor, setCursor] = useState(0);
+
+<TextArea
+  isActive={true}
+  value={value}
+  cursorPosition={cursor}
+  onChange={setValue}
+  onCursorChange={setCursor}
+  onSubmit={(val) => console.log(val)}
+/>;
+```
 
 ## Keybindings
 

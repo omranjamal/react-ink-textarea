@@ -92,6 +92,11 @@ export type TextAreaProps = {
   readonly highlightActiveLine?: boolean;
   readonly activeLineColor?: string;
   readonly enableArrowNavigation?: boolean;
+  // Controlled mode props
+  readonly value?: string;
+  readonly cursorPosition?: number;
+  readonly onChange?: (value: string) => void;
+  readonly onCursorChange?: (position: number) => void;
 };
 
 export const TextArea = ({
@@ -107,9 +112,36 @@ export const TextArea = ({
   highlightActiveLine = false,
   activeLineColor = undefined,
   enableArrowNavigation = true,
+  // Controlled mode
+  value: controlledValue,
+  cursorPosition: controlledCursor,
+  onChange,
+  onCursorChange,
 }: TextAreaProps): ReactNode => {
-  const [value, setValue] = useState("");
-  const [cursor, setCursor] = useState(0);
+  const isControlled = controlledValue !== undefined;
+  const [internalValue, setInternalValue] = useState("");
+  const [internalCursor, setInternalCursor] = useState(0);
+
+  const value = isControlled ? controlledValue : internalValue;
+  const cursor = isControlled
+    ? (controlledCursor ?? internalCursor)
+    : internalCursor;
+
+  const setValue = (updater: string | ((prev: string) => string)) => {
+    const newValue = typeof updater === "function" ? updater(value) : updater;
+    if (!isControlled) {
+      setInternalValue(newValue);
+    }
+    onChange?.(newValue);
+  };
+
+  const setCursor = (updater: number | ((prev: number) => number)) => {
+    const newCursor = typeof updater === "function" ? updater(cursor) : updater;
+    if (!isControlled) {
+      setInternalCursor(newCursor);
+    }
+    onCursorChange?.(newCursor);
+  };
   const [cursorVisible, setCursorVisible] = useState(true);
   const blinkIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
