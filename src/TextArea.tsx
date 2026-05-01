@@ -132,6 +132,8 @@ export const TextArea = ({
   const isControlled = controlledValue !== undefined;
   const [internalValue, setInternalValue] = useState("");
   const [internalCursor, setInternalCursor] = useState(0);
+  // Track which "virtual" line we're on when textarea is empty (for initialLineCount)
+  const [virtualLineIndex, setVirtualLineIndex] = useState(0);
 
   const value = isControlled ? controlledValue : internalValue;
   const cursor = isControlled
@@ -142,6 +144,10 @@ export const TextArea = ({
     const newValue = typeof updater === "function" ? updater(value) : updater;
     if (!isControlled) {
       setInternalValue(newValue);
+    }
+    // Reset virtual line index when text is added
+    if (newValue.replace(/\n/g, "").length > 0) {
+      setVirtualLineIndex(0);
     }
     onChange?.(newValue);
   };
@@ -266,6 +272,21 @@ export const TextArea = ({
       // Up arrow — move to same column on previous line
       if (key.upArrow) {
         if (!enableArrowNavigation) return;
+        const hasAnyText = value.replace(/\n/g, "").length > 0;
+
+        // Handle virtual lines when empty
+        if (!hasAnyText) {
+          if (virtualLineIndex === 0 && onFirstLineUp) {
+            onFirstLineUp();
+            return;
+          }
+          resetBlink();
+          if (virtualLineIndex > 0) {
+            setVirtualLineIndex((i) => i - 1);
+          }
+          return;
+        }
+
         const { line } = getCursorLineAndColumn(value, cursor);
         if (line === 0 && onFirstLineUp) {
           onFirstLineUp();
@@ -295,16 +316,23 @@ export const TextArea = ({
         const isOnLastLine = currentLineEnd >= value.length;
         resetBlink();
         if (isOnLastLine) {
-          // Count trailing empty lines (empty lines after the last line with text)
-          const trailingEmpty = countTrailingEmptyLines(value);
-
-          // Block if: no text exists yet, or we've hit the empty line limit
+          // When empty, use virtual line navigation
           const hasAnyText = value.replace(/\n/g, "").length > 0;
           if (!hasAnyText) {
-            // No text yet - just stay at end without triggering handler
-            setCursor(value.length);
+            if (virtualLineIndex < initialLineCount - 1) {
+              // Navigate through virtual empty lines
+              setVirtualLineIndex((i) => i + 1);
+            } else {
+              // At last virtual line - trigger handler
+              if (onLastLineDown) {
+                onLastLineDown();
+              }
+            }
             return;
           }
+
+          // Count trailing empty lines (empty lines after the last line with text)
+          const trailingEmpty = countTrailingEmptyLines(value);
           if (trailingEmpty >= emptyAutogrowLimit) {
             if (onLastLineDown) {
               onLastLineDown();
@@ -462,10 +490,12 @@ export const TextArea = ({
   const lines = value.split("\n");
   const totalLines = Math.max(lines.length, initialLineCount);
   const hasContent = value.replace(/\n/g, "").length > 0;
-  const { line: cursorLine, column: cursorColumn } = getCursorLineAndColumn(
+  // When empty, use virtual line index for cursor position
+  const { line: rawCursorLine, column: cursorColumn } = getCursorLineAndColumn(
     value,
     cursor,
   );
+  const cursorLine = hasContent ? rawCursorLine : virtualLineIndex;
 
   const renderLine = (
     content: ReactNode,
