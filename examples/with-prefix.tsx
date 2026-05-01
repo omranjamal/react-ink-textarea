@@ -31,7 +31,7 @@ const App = () => {
         initialLineCount={4}
         onFirstLineUp={() => showBoundaryMessage("[first line up]")}
         onLastLineDown={() => showBoundaryMessage("[last line down]")}
-        onChange={setCharCount}
+        onChange={(value) => setCharCount(value.length)}
         linePrefix={(lineNumber, totalLines, isActiveLine) => (
           <Text>
             <Text color="gray">│ </Text>
