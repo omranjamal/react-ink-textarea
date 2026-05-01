@@ -34,14 +34,25 @@ const App = () => {
         onLastLineDown={() => showBoundaryMessage("[last line down]")}
         onChange={(value) => setCharCount(value.length)}
         onCursorChange={setCursorPos}
-        linePrefix={(lineNumber, totalLines, isActiveLine) => (
+        linePrefix={({
+          lineNumber,
+          totalLines,
+          isActiveLine,
+          isVirtualLine,
+        }) => (
           <Text>
             <Text color="gray">│ </Text>
-            <LineNumber
-              lineNumber={lineNumber}
-              totalLines={totalLines}
-              isActive={isActiveLine}
-            />
+            <Text
+              color={
+                isVirtualLine
+                  ? "gray"
+                  : isActiveLine
+                    ? "magentaBright"
+                    : "white"
+              }
+            >
+              {String(lineNumber + 1).padStart(String(totalLines).length, " ")}
+            </Text>
             <Text color="gray"> │ </Text>
           </Text>
         )}

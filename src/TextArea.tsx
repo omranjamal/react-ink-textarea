@@ -107,11 +107,14 @@ const getCursorFromLineColumn = (
   return { cursor, clampedLine, clampedCol };
 };
 
-type TLinePrefixFn = (
-  lineNumber: number,
-  totalLines: number,
-  isActiveLine: boolean,
-) => ReactNode;
+export type TLinePrefixProps = {
+  readonly lineNumber: number;
+  readonly totalLines: number;
+  readonly isActiveLine: boolean;
+  readonly isVirtualLine: boolean;
+};
+
+type TLinePrefixFn = (props: TLinePrefixProps) => ReactNode;
 
 export type TextAreaProps = {
   readonly isActive: boolean;
@@ -582,12 +585,17 @@ export const TextArea = ({
     key: string | number,
     lineNumber: number,
     totalLinesArg: number,
+    isVirtualLine: boolean,
   ): ReactNode => {
     const isActiveLine = isActive && lineNumber === cursorLine;
+    const prefixProps: TLinePrefixProps = {
+      lineNumber,
+      totalLines: totalLinesArg,
+      isActiveLine,
+      isVirtualLine,
+    };
     const prefix =
-      typeof linePrefix === "function"
-        ? linePrefix(lineNumber, totalLinesArg, isActiveLine)
-        : linePrefix;
+      typeof linePrefix === "function" ? linePrefix(prefixProps) : linePrefix;
 
     const isHighlighted = highlightActiveLine && isActiveLine;
 
@@ -620,9 +628,10 @@ export const TextArea = ({
           0,
           0,
           initialLineCount,
+          true,
         )}
         {Array.from({ length: initialLineCount - 1 }, (_, i) =>
-          renderLine(<Text> </Text>, i + 1, i + 1, initialLineCount),
+          renderLine(<Text> </Text>, i + 1, i + 1, initialLineCount, true),
         )}
       </Box>
     );
@@ -643,6 +652,7 @@ export const TextArea = ({
             i,
             i,
             initialLineCount,
+            true,
           ),
         )}
       </Box>
@@ -663,6 +673,7 @@ export const TextArea = ({
         lineIdx,
         lineIdx,
         totalLines,
+        false,
       );
     }
 
@@ -686,6 +697,7 @@ export const TextArea = ({
       lineIdx,
       lineIdx,
       totalLines,
+      false,
     );
   });
 
@@ -693,7 +705,7 @@ export const TextArea = ({
   while (renderedLines.length < initialLineCount) {
     const padIdx = renderedLines.length;
     renderedLines.push(
-      renderLine(<Text> </Text>, `pad-${padIdx}`, padIdx, totalLines),
+      renderLine(<Text> </Text>, `pad-${padIdx}`, padIdx, totalLines, true),
     );
   }
 

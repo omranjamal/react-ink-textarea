@@ -108,7 +108,9 @@ describe("TextArea", () => {
       <TextArea
         isActive={true}
         onSubmit={() => {}}
-        linePrefix={(num) => <Text color="green">{`>${num + 1}< `}</Text>}
+        linePrefix={({ lineNumber }) => (
+          <Text color="green">{`>${lineNumber + 1}< `}</Text>
+        )}
       />,
     );
 
@@ -120,7 +122,7 @@ describe("TextArea", () => {
     expect(frame).toContain("hello");
   });
 
-  it("passes isActiveLine to linePrefix function", async () => {
+  it("passes props object to linePrefix function", async () => {
     const linePrefix = vi.fn(() => <Text>{"> "}</Text>);
     const { stdin } = render(
       <TextArea isActive={true} onSubmit={() => {}} linePrefix={linePrefix} />,
@@ -131,8 +133,17 @@ describe("TextArea", () => {
 
     expect(linePrefix).toHaveBeenCalled();
     const lastCall = linePrefix.mock.calls[linePrefix.mock.calls.length - 1];
-    expect(lastCall).toHaveLength(3);
-    expect(typeof lastCall![2]).toBe("boolean");
+    expect(lastCall).toHaveLength(1);
+    const props = lastCall![0] as {
+      lineNumber: number;
+      totalLines: number;
+      isActiveLine: boolean;
+      isVirtualLine: boolean;
+    };
+    expect(typeof props.lineNumber).toBe("number");
+    expect(typeof props.totalLines).toBe("number");
+    expect(typeof props.isActiveLine).toBe("boolean");
+    expect(typeof props.isVirtualLine).toBe("boolean");
   });
 
   it("highlights active line when highlightActiveLine is enabled", async () => {
