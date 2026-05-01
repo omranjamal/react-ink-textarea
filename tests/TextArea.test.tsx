@@ -171,4 +171,243 @@ describe("TextArea", () => {
 
     expect(lastFrame()).toContain(" 1");
   });
+
+  describe("Controlled Mode", () => {
+    it("renders controlled value", () => {
+      const { lastFrame } = render(
+        <TextArea
+          isActive={true}
+          onSubmit={() => {}}
+          value="controlled text"
+          cursorPosition={17} // At the end, so no ANSI in middle
+          onChange={() => {}}
+        />,
+      );
+
+      // Check for parts of text since cursor may add ANSI codes
+      expect(lastFrame()).toContain("controlled");
+      expect(lastFrame()).toContain("text");
+    });
+
+    it("calls onChange when typing in controlled mode", async () => {
+      const onChange = vi.fn();
+      const { stdin } = render(
+        <TextArea
+          isActive={true}
+          onSubmit={() => {}}
+          value=""
+          onChange={onChange}
+        />,
+      );
+
+      stdin.write("a");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(onChange).toHaveBeenCalledWith("a");
+    });
+
+    it("respects cursorPosition prop", () => {
+      const onCursorChange = vi.fn();
+      const { stdin } = render(
+        <TextArea
+          isActive={true}
+          onSubmit={() => {}}
+          value="hello"
+          cursorPosition={3}
+          onChange={() => {}}
+          onCursorChange={onCursorChange}
+        />,
+      );
+
+      // Move left to verify cursor starts at position 3
+      stdin.write("\x1b[D"); // Left arrow
+
+      // Verify onCursorChange is called with position 2 (moved left from 3)
+      expect(onCursorChange).toHaveBeenCalledWith(2);
+    });
+
+    it("calls onCursorChange when cursor moves in controlled mode", async () => {
+      const onCursorChange = vi.fn();
+      const { stdin } = render(
+        <TextArea
+          isActive={true}
+          onSubmit={() => {}}
+          value="hello"
+          cursorPosition={5}
+          onChange={() => {}}
+          onCursorChange={onCursorChange}
+        />,
+      );
+
+      stdin.write("\x1b[D"); // Left arrow
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(onCursorChange).toHaveBeenCalledWith(4);
+    });
+
+    it("does not update internal state when value prop is provided", async () => {
+      const onChange = vi.fn();
+      const { stdin, lastFrame } = render(
+        <TextArea
+          isActive={true}
+          onSubmit={() => {}}
+          value="fixed"
+          cursorPosition={5}
+          onChange={onChange}
+        />,
+      );
+
+      const beforeFrame = lastFrame();
+
+      stdin.write("a");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // Value should remain "fixed" because component is controlled
+      const afterFrame = lastFrame();
+      expect(afterFrame).toBe(beforeFrame);
+      expect(onChange).toHaveBeenCalledWith("fixeda");
+    });
+
+    it("calls onChange with correct value when deleting in controlled mode", async () => {
+      const onChange = vi.fn();
+      const { stdin } = render(
+        <TextArea
+          isActive={true}
+          onSubmit={() => {}}
+          value="hello"
+          cursorPosition={5}
+          onChange={onChange}
+        />,
+      );
+
+      stdin.write("\x7F"); // Backspace
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(onChange).toHaveBeenCalledWith("hell");
+    });
+
+    it("calls onChange with correct value when inserting newline in controlled mode", async () => {
+      const onChange = vi.fn();
+      const { stdin } = render(
+        <TextArea
+          isActive={true}
+          onSubmit={() => {}}
+          value="line1"
+          cursorPosition={5}
+          onChange={onChange}
+        />,
+      );
+
+      stdin.write("\x0A"); // Ctrl+J
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(onChange).toHaveBeenCalledWith("line1\n");
+    });
+  });
+
+  describe("Navigation Lock", () => {
+    it("moves cursor with arrow keys when enableArrowNavigation is true", async () => {
+      const onCursorChange = vi.fn();
+      const { stdin } = render(
+        <TextArea
+          isActive={true}
+          onSubmit={() => {}}
+          value="hello"
+          cursorPosition={0}
+          onChange={() => {}}
+          onCursorChange={onCursorChange}
+          enableArrowNavigation={true}
+        />,
+      );
+
+      stdin.write("\x1b[C"); // Right arrow
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(onCursorChange).toHaveBeenCalledWith(1);
+    });
+
+    it("does not move cursor with arrow keys when enableArrowNavigation is false", async () => {
+      const onCursorChange = vi.fn();
+      const { stdin } = render(
+        <TextArea
+          isActive={true}
+          onSubmit={() => {}}
+          value="hello"
+          cursorPosition={0}
+          onChange={() => {}}
+          onCursorChange={onCursorChange}
+          enableArrowNavigation={false}
+        />,
+      );
+
+      stdin.write("\x1b[C"); // Right arrow
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(onCursorChange).not.toHaveBeenCalled();
+    });
+
+    it("still allows typing when enableArrowNavigation is false", async () => {
+      const onChange = vi.fn();
+      const { stdin } = render(
+        <TextArea
+          isActive={true}
+          onSubmit={() => {}}
+          value=""
+          onChange={onChange}
+          enableArrowNavigation={false}
+        />,
+      );
+
+      stdin.write("hello");
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      expect(onChange).toHaveBeenCalledWith("hello");
+    });
+
+    it("still allows newline insertion when enableArrowNavigation is false", async () => {
+      const onChange = vi.fn();
+      const { stdin } = render(
+        <TextArea
+          isActive={true}
+          onSubmit={() => {}}
+          value="line1"
+          cursorPosition={5}
+          onChange={onChange}
+          enableArrowNavigation={false}
+        />,
+      );
+
+      stdin.write("\x0A"); // Ctrl+J
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(onChange).toHaveBeenCalledWith("line1\n");
+    });
+
+    it("prevents all arrow directions when enableArrowNavigation is false", async () => {
+      const onCursorChange = vi.fn();
+      const { stdin } = render(
+        <TextArea
+          isActive={true}
+          onSubmit={() => {}}
+          value="hello\nworld"
+          cursorPosition={6}
+          onChange={() => {}}
+          onCursorChange={onCursorChange}
+          enableArrowNavigation={false}
+        />,
+      );
+
+      // Try all four directions
+      stdin.write("\x1b[A"); // Up
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      stdin.write("\x1b[B"); // Down
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      stdin.write("\x1b[D"); // Left
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      stdin.write("\x1b[C"); // Right
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      expect(onCursorChange).not.toHaveBeenCalled();
+    });
+  });
 });
