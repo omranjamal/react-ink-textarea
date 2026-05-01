@@ -6,6 +6,7 @@ import { TextArea, LineNumber } from "ink-textarea";
 const App = () => {
   const [submitted, setSubmitted] = useState("");
   const [boundaryMessage, setBoundaryMessage] = useState<string | null>(null);
+  const [charCount, setCharCount] = useState(0);
 
   const showBoundaryMessage = (message: string) => {
     setBoundaryMessage(message);
@@ -30,6 +31,7 @@ const App = () => {
         initialLineCount={4}
         onFirstLineUp={() => showBoundaryMessage("[first line up]")}
         onLastLineDown={() => showBoundaryMessage("[last line down]")}
+        onChange={setCharCount}
         linePrefix={(lineNumber, totalLines, isActiveLine) => (
           <Text>
             <Text color="gray">│ </Text>
@@ -42,6 +44,8 @@ const App = () => {
           </Text>
         )}
       />
+
+      <Text dimColor>{charCount} characters</Text>
 
       {boundaryMessage && (
         <Text color="cyan" bold>

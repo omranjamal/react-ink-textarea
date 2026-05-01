@@ -157,6 +157,14 @@ export const TextArea = ({
   const blinkIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Call onChange with initial value on first render in uncontrolled mode
+  useEffect(() => {
+    if (!isControlled && onChange) {
+      onChange(internalValue);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (!isActive) {
       if (blinkIntervalRef.current) {
