@@ -34,6 +34,7 @@ Use arrow keys to navigate
 Ctrl+Enter for new line`}
         autoNewLineLimit={4}
         initialLineCount={4}
+        showInvisibles={true}
         onFirstLineUp={() => showBoundaryMessage("[first line up]")}
         onLastLineDown={() => showBoundaryMessage("[last line down]")}
         onChange={(value) => setCharCount(value.length)}

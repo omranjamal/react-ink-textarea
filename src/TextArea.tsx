@@ -22,6 +22,77 @@ import { useCursorBlink } from "./hooks/useCursorBlink.js";
 import { useKeyboardInput } from "./hooks/useKeyboardInput.js";
 import type { TextAreaProps, TLinePrefixProps } from "./types.js";
 
+type InvisiblesConfig = {
+  readonly space: boolean;
+  readonly tab: boolean;
+  readonly newline: boolean;
+};
+
+const renderChunkBody = (
+  chunk: string,
+  cursorPos: number,
+  cursorVisible: boolean,
+  isCursorAtLineEnd: boolean,
+  inv: InvisiblesConfig,
+): ReactNode[] => {
+  const nodes: ReactNode[] = [];
+  let buf = "";
+  let segIdx = 0;
+  const flush = () => {
+    if (buf.length > 0) {
+      nodes.push(<Text key={`s${segIdx++}`}>{buf}</Text>);
+      buf = "";
+    }
+  };
+
+  for (let i = 0; i < chunk.length; i++) {
+    const ch = chunk[i]!;
+    const glyph =
+      ch === " " && inv.space
+        ? "·"
+        : ch === "\t" && inv.tab
+          ? "→"
+          : null;
+    const isCursor = i === cursorPos;
+
+    if (isCursor) {
+      flush();
+      const display = glyph ?? ch;
+      const cursorStr = cursorVisible
+        ? `\x1b[7m${display}\x1b[27m`
+        : display === " " && isCursorAtLineEnd
+          ? " "
+          : display;
+      nodes.push(
+        glyph !== null ? (
+          <Text key={`c${i}`} color="gray" dimColor>
+            {cursorStr}
+          </Text>
+        ) : (
+          <Text key={`c${i}`}>{cursorStr}</Text>
+        ),
+      );
+    } else if (glyph !== null) {
+      flush();
+      nodes.push(
+        <Text key={`d${i}`} color="gray" dimColor>
+          {glyph}
+        </Text>,
+      );
+    } else {
+      buf += ch;
+    }
+  }
+  flush();
+
+  if (cursorPos === chunk.length) {
+    const cursorStr = cursorVisible ? `\x1b[7m \x1b[27m` : " ";
+    nodes.push(<Text key="cend">{cursorStr}</Text>);
+  }
+
+  return nodes;
+};
+
 export const TextArea = ({
   isActive,
   onSubmit,
@@ -43,7 +114,21 @@ export const TextArea = ({
   onLastLineDown,
   initialLineCount = DEFAULT_INITIAL_LINE_COUNT,
   onDimensions,
+  showInvisibles = false,
 }: TextAreaProps): ReactNode => {
+  const inv =
+    typeof showInvisibles === "boolean"
+      ? {
+          space: showInvisibles,
+          tab: showInvisibles,
+          newline: showInvisibles,
+        }
+      : {
+          space: !!showInvisibles.space,
+          tab: !!showInvisibles.tab,
+          newline: !!showInvisibles.newline,
+        };
+  const showAnyInvisible = inv.space || inv.tab || inv.newline;
   const { value, cursor, setValue, setCursor } = useCursorState({
     controlledValue,
     controlledPosition,
@@ -231,30 +316,63 @@ export const TextArea = ({
       const chunk = chunks[c]!;
       const isContinuation = c > 0;
       const isActiveRow = isCursorLine && c === cursorVisualRow;
+      const isLastChunk = c === chunks.length - 1;
+      const hasTrailingNewline = lineIdx < lines.length - 1;
+      const showNewlineGlyph =
+        inv.newline && isLastChunk && hasTrailingNewline;
 
-      let bodyText: string;
-      if (isActiveRow) {
-        const posInChunk =
-          lineWidth > 0 ? cursorColumn % lineWidth : cursorColumn;
-        bodyText = renderChunkWithCursor(
-          chunk,
-          posInChunk,
-          cursorVisible,
-          cursorColumn >= lineText.length,
-        );
-      } else {
-        bodyText = chunk || " ";
-      }
+      const cursorPos = isActiveRow
+        ? lineWidth > 0
+          ? cursorColumn % lineWidth
+          : cursorColumn
+        : -1;
+      const isCursorAtLineEnd = cursorColumn >= lineText.length;
 
       const showPlaceholder =
         !isContinuation && placeholderLines[lineIdx] && !hasContent;
 
+      const bodyNodes: ReactNode[] = showAnyInvisible
+        ? renderChunkBody(
+            chunk,
+            cursorPos,
+            cursorVisible,
+            isCursorAtLineEnd,
+            inv,
+          )
+        : isActiveRow
+          ? [
+              <Text key="b">
+                {renderChunkWithCursor(
+                  chunk,
+                  cursorPos,
+                  cursorVisible,
+                  isCursorAtLineEnd,
+                )}
+              </Text>,
+            ]
+          : [<Text key="b">{chunk || " "}</Text>];
+
+      if (
+        bodyNodes.length === 0 &&
+        !showNewlineGlyph &&
+        !showPlaceholder
+      ) {
+        bodyNodes.push(<Text key="b"> </Text>);
+      }
+
       renderedLines.push(
         renderLine(
           <Text>
-            {bodyText}
+            {bodyNodes}
+            {showNewlineGlyph ? (
+              <Text key="nl" color="gray" dimColor>
+                ↵
+              </Text>
+            ) : null}
             {showPlaceholder ? (
-              <Text dimColor>{placeholderLines[lineIdx]}</Text>
+              <Text key="ph" dimColor>
+                {placeholderLines[lineIdx]}
+              </Text>
             ) : null}
           </Text>,
           `${lineIdx}-${c}`,

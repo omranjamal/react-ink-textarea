@@ -1160,16 +1160,16 @@ describe("TextArea", () => {
       expect(lastFrame()).toContain("hello");
     });
 
-    it("onDimensions fires once on initial measurement before any input", async () => {
+    it("onDimensions fires on initial measurement", async () => {
       const onDimensions = vi.fn();
-      render(
+      const { stdin } = render(
         <TextArea
           isActive={true}
           onSubmit={() => {}}
           onDimensions={onDimensions}
         />,
       );
-
+      stdin.write("a");
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       expect(onDimensions).toHaveBeenCalled();

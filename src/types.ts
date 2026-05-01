@@ -11,6 +11,14 @@ export type TLinePrefixProps = {
 
 export type TLinePrefixFn = (props: TLinePrefixProps) => ReactNode;
 
+export type TShowInvisibles =
+  | boolean
+  | {
+      readonly space?: boolean;
+      readonly tab?: boolean;
+      readonly newline?: boolean;
+    };
+
 export type TextAreaProps = {
   readonly isActive: boolean;
   readonly onSubmit: (value: string) => void;
@@ -36,4 +44,5 @@ export type TextAreaProps = {
   // Initial line count
   readonly initialLineCount?: number;
   readonly onDimensions?: (width: number) => void;
+  readonly showInvisibles?: TShowInvisibles;
 };
