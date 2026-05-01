@@ -97,6 +97,9 @@ export type TextAreaProps = {
   readonly cursorPosition?: number;
   readonly onChange?: (value: string) => void;
   readonly onCursorChange?: (position: number) => void;
+  // Boundary navigation handlers
+  readonly onFirstLineUp?: () => void;
+  readonly onLastLineDown?: () => void;
 };
 
 export const TextArea = ({
@@ -117,6 +120,9 @@ export const TextArea = ({
   cursorPosition: controlledCursor,
   onChange,
   onCursorChange,
+  // Boundary navigation handlers
+  onFirstLineUp,
+  onLastLineDown,
 }: TextAreaProps): ReactNode => {
   const isControlled = controlledValue !== undefined;
   const [internalValue, setInternalValue] = useState("");
@@ -252,10 +258,18 @@ export const TextArea = ({
       // Up arrow — move to same column on previous line
       if (key.upArrow) {
         if (!enableArrowNavigation) return;
+        const { line } = getCursorLineAndColumn(value, cursor);
+        if (line === 0 && onFirstLineUp) {
+          onFirstLineUp();
+          return;
+        }
         resetBlink();
         setCursor((c) => {
-          const { line, column } = getCursorLineAndColumn(value, c);
-          if (line === 0) {
+          const { line: currentLine, column } = getCursorLineAndColumn(
+            value,
+            c,
+          );
+          if (currentLine === 0) {
             return findLineStart(value, c);
           }
           const prevLineEnd = findLineStart(value, c) - 1;
@@ -269,9 +283,14 @@ export const TextArea = ({
       // Down arrow — move to next line, or create one if on last line
       if (key.downArrow) {
         if (!enableArrowNavigation) return;
-        resetBlink();
         const currentLineEnd = findLineEnd(value, cursor);
-        if (currentLineEnd >= value.length) {
+        const isOnLastLine = currentLineEnd >= value.length;
+        if (isOnLastLine && onLastLineDown) {
+          onLastLineDown();
+          return;
+        }
+        resetBlink();
+        if (isOnLastLine) {
           if (countTrailingEmptyLines(value) >= maxTrailingEmptyLines) {
             setCursor(value.length);
             return;

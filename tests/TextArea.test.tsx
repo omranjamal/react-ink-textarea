@@ -410,4 +410,85 @@ describe("TextArea", () => {
       expect(onCursorChange).not.toHaveBeenCalled();
     });
   });
+
+  describe("Boundary Navigation Handlers", () => {
+    it("calls onFirstLineUp when pressing up on first line", async () => {
+      const onFirstLineUp = vi.fn();
+      const { stdin } = render(
+        <TextArea
+          isActive={true}
+          onSubmit={() => {}}
+          value="hello"
+          cursorPosition={3}
+          onChange={() => {}}
+          onFirstLineUp={onFirstLineUp}
+        />,
+      );
+
+      stdin.write("\x1b[A"); // Up arrow
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(onFirstLineUp).toHaveBeenCalled();
+    });
+
+    it("calls onLastLineDown when pressing down on last line", async () => {
+      const onLastLineDown = vi.fn();
+      const onChange = vi.fn();
+      const { stdin } = render(
+        <TextArea
+          isActive={true}
+          onSubmit={() => {}}
+          value="hello"
+          cursorPosition={3}
+          onChange={onChange}
+          onLastLineDown={onLastLineDown}
+        />,
+      );
+
+      stdin.write("\x1b[B"); // Down arrow
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(onLastLineDown).toHaveBeenCalled();
+      // Should not autogrow when handler is provided
+      expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it("still allows normal up navigation when onFirstLineUp is not provided", async () => {
+      const onCursorChange = vi.fn();
+      const { stdin } = render(
+        <TextArea
+          isActive={true}
+          onSubmit={() => {}}
+          value="line1\nline2"
+          cursorPosition={7} // On second line
+          onChange={() => {}}
+          onCursorChange={onCursorChange}
+        />,
+      );
+
+      stdin.write("\x1b[A"); // Up arrow
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(onCursorChange).toHaveBeenCalled();
+    });
+
+    it("still allows normal down navigation when onLastLineDown is not provided", async () => {
+      const onCursorChange = vi.fn();
+      const { stdin } = render(
+        <TextArea
+          isActive={true}
+          onSubmit={() => {}}
+          value="line1\nline2"
+          cursorPosition={2} // On first line
+          onChange={() => {}}
+          onCursorChange={onCursorChange}
+        />,
+      );
+
+      stdin.write("\x1b[B"); // Down arrow
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(onCursorChange).toHaveBeenCalled();
+    });
+  });
 });
