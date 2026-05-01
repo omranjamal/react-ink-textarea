@@ -19,6 +19,21 @@ export type TShowInvisibles =
       readonly newline?: boolean;
     };
 
+export type TStyleProps = {
+  readonly color?: string;
+  readonly bold?: boolean;
+  readonly italic?: boolean;
+  readonly underline?: boolean;
+  readonly strikethrough?: boolean;
+  readonly dim?: boolean;
+  readonly inverse?: boolean;
+  readonly bgColor?: string;
+};
+
+export type TStyles = Partial<
+  Record<"text" | "invisibleCharacter", TStyleProps>
+>;
+
 export type TextAreaProps = {
   readonly isActive: boolean;
   readonly onSubmit: (value: string) => void;
@@ -45,4 +60,5 @@ export type TextAreaProps = {
   readonly initialLineCount?: number;
   readonly onDimensions?: (width: number) => void;
   readonly showInvisibles?: TShowInvisibles;
+  readonly styles?: TStyles;
 };

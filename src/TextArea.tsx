@@ -20,7 +20,12 @@ import { useCursorState } from "./hooks/useCursorState.js";
 import { useUndo } from "./hooks/useUndo.js";
 import { useCursorBlink } from "./hooks/useCursorBlink.js";
 import { useKeyboardInput } from "./hooks/useKeyboardInput.js";
-import type { TextAreaProps, TLinePrefixProps } from "./types.js";
+import type {
+  TextAreaProps,
+  TLinePrefixProps,
+  TStyleProps,
+  TStyles,
+} from "./types.js";
 
 type InvisiblesConfig = {
   readonly space: boolean;
@@ -28,12 +33,44 @@ type InvisiblesConfig = {
   readonly newline: boolean;
 };
 
+type ResolvedStyles = Required<Pick<TStyles, "text" | "invisibleCharacter">>;
+
+const DEFAULT_STYLES: ResolvedStyles = {
+  text: {},
+  invisibleCharacter: { color: "gray", dim: true },
+};
+
+const mergeStyleProps = (
+  base: TStyleProps,
+  override: TStyleProps | undefined,
+): TStyleProps => ({ ...base, ...(override ?? {}) });
+
+const resolveStyles = (input: TStyles | undefined): ResolvedStyles => ({
+  text: mergeStyleProps(DEFAULT_STYLES.text, input?.text),
+  invisibleCharacter: mergeStyleProps(
+    DEFAULT_STYLES.invisibleCharacter,
+    input?.invisibleCharacter,
+  ),
+});
+
+const styleToTextProps = (s: TStyleProps) => ({
+  color: s.color,
+  bold: s.bold,
+  italic: s.italic,
+  underline: s.underline,
+  strikethrough: s.strikethrough,
+  dimColor: s.dim,
+  inverse: s.inverse,
+  backgroundColor: s.bgColor,
+});
+
 const renderChunkBody = (
   chunk: string,
   cursorPos: number,
   cursorVisible: boolean,
   isCursorAtLineEnd: boolean,
   inv: InvisiblesConfig,
+  invisibleProps: ReturnType<typeof styleToTextProps>,
 ): ReactNode[] => {
   const nodes: ReactNode[] = [];
   let buf = "";
@@ -65,7 +102,7 @@ const renderChunkBody = (
           : display;
       nodes.push(
         glyph !== null ? (
-          <Text key={`c${i}`} color="gray" dimColor>
+          <Text key={`c${i}`} {...invisibleProps}>
             {cursorStr}
           </Text>
         ) : (
@@ -75,7 +112,7 @@ const renderChunkBody = (
     } else if (glyph !== null) {
       flush();
       nodes.push(
-        <Text key={`d${i}`} color="gray" dimColor>
+        <Text key={`d${i}`} {...invisibleProps}>
           {glyph}
         </Text>,
       );
@@ -115,7 +152,11 @@ export const TextArea = ({
   initialLineCount = DEFAULT_INITIAL_LINE_COUNT,
   onDimensions,
   showInvisibles = false,
+  styles,
 }: TextAreaProps): ReactNode => {
+  const resolvedStyles = resolveStyles(styles);
+  const textProps = styleToTextProps(resolvedStyles.text);
+  const invisibleProps = styleToTextProps(resolvedStyles.invisibleCharacter);
   const inv =
     typeof showInvisibles === "boolean"
       ? {
@@ -267,7 +308,7 @@ export const TextArea = ({
       <Box flexDirection="column">
         {Array.from({ length: initialLineCount }, (_, i) =>
           renderLine(
-            <Text>
+            <Text {...textProps}>
               {i === cursorLine && cursorVisible ? "\x1b[7m \x1b[27m" : " "}
               {placeholderLines[i] ? (
                 <Text dimColor>{placeholderLines[i]}</Text>
@@ -338,6 +379,7 @@ export const TextArea = ({
             cursorVisible,
             isCursorAtLineEnd,
             inv,
+            invisibleProps,
           )
         : isActiveRow
           ? [
@@ -362,10 +404,10 @@ export const TextArea = ({
 
       renderedLines.push(
         renderLine(
-          <Text>
+          <Text {...textProps}>
             {bodyNodes}
             {showNewlineGlyph ? (
-              <Text key="nl" color="gray" dimColor>
+              <Text key="nl" {...invisibleProps}>
                 ↵
               </Text>
             ) : null}
