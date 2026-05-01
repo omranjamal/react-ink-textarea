@@ -552,17 +552,18 @@ export const TextArea = ({
   if (value.length === 0 && isActive) {
     return (
       <Box flexDirection="column">
-        {renderLine(
-          <Text>
-            {cursorVisible ? "\x1b[7m \x1b[27m" : " "}
-            {placeholder ? <Text dimColor>{placeholder}</Text> : null}
-          </Text>,
-          0,
-          0,
-          initialLineCount,
-        )}
-        {Array.from({ length: initialLineCount - 1 }, (_, i) =>
-          renderLine(<Text> </Text>, i + 1, i + 1, initialLineCount),
+        {Array.from({ length: initialLineCount }, (_, i) =>
+          renderLine(
+            <Text>
+              {i === cursorLine && cursorVisible ? "\x1b[7m \x1b[27m" : " "}
+              {i === 0 && placeholder ? (
+                <Text dimColor>{placeholder}</Text>
+              ) : null}
+            </Text>,
+            i,
+            i,
+            initialLineCount,
+          ),
         )}
       </Box>
     );
