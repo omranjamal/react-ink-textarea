@@ -49,37 +49,56 @@ render(<App />);
 Render line numbers, borders, or any custom prefix before each line:
 
 ```tsx
+import { TextArea, LineNumber } from "ink-textarea";
+
 <TextArea
   isActive={true}
   onSubmit={(value) => console.log(value)}
   placeholder="Write some code..."
-  linePrefix={(lineNumber, totalLines) => {
-    const width = String(totalLines).length;
-    const num = String(lineNumber + 1).padStart(width, " ");
-    return (
-      <Text>
-        <Text color="gray">│</Text>
-        <Text dimColor>{num}</Text>
-        <Text color="gray"> │ </Text>
-      </Text>
-    );
-  }}
-/>
+  highlightActiveLine={true}
+  linePrefix={(lineNumber, totalLines, isActiveLine) => (
+    <Text>
+      <Text color="gray">│ </Text>
+      <LineNumber
+        lineNumber={lineNumber}
+        totalLines={totalLines}
+        isActive={isActiveLine}
+      />
+      <Text color="gray"> │ </Text>
+    </Text>
+  )}
+/>;
+```
+
+### Line Number Component
+
+The `LineNumber` component is exported for reuse:
+
+```tsx
+import { LineNumber } from "ink-textarea";
+
+// Active line (highlighted)
+<LineNumber lineNumber={0} totalLines={10} isActive={true} />
+
+// Inactive line
+<LineNumber lineNumber={1} totalLines={10} isActive={false} />
 ```
 
 ## Props
 
-| Prop                    | Type                                                                 | Description                                                                                                                                           |
-| ----------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `isActive`              | `boolean`                                                            | Whether the textarea is focused and receiving keyboard input.                                                                                         |
-| `onSubmit`              | `(value: string) => void`                                            | Called when the user presses **Enter**. Receives the full text.                                                                                       |
-| `placeholder`           | `string`                                                             | Placeholder text shown when the textarea is empty.                                                                                                    |
-| `linePrefix`            | `ReactNode \| (lineNumber: number, totalLines: number) => ReactNode` | Optional prefix rendered before each line. Use for line numbers, gutters, borders, etc.                                                               |
-| `cursorInterval`        | `number`                                                             | Cursor blink interval in milliseconds. Defaults to `500`.                                                                                             |
-| `typingPause`           | `number`                                                             | Milliseconds to wait after typing before resuming cursor blink. Defaults to `450`.                                                                    |
-| `maxUndo`               | `number`                                                             | Maximum number of undo steps to retain. Defaults to `128`.                                                                                            |
-| `undoGroupDelay`        | `number`                                                             | Milliseconds to group consecutive edits into a single undo step. Defaults to `2500`.                                                                  |
-| `maxTrailingEmptyLines` | `number`                                                             | Maximum number of empty lines allowed after the last line with content. Prevents infinite growth when pressing Down arrow or Ctrl+J. Defaults to `3`. |
+| Prop                    | Type                                                                                        | Description                                                                                                                                           |
+| ----------------------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `isActive`              | `boolean`                                                                                   | Whether the textarea is focused and receiving keyboard input.                                                                                         |
+| `onSubmit`              | `(value: string) => void`                                                                   | Called when the user presses **Enter**. Receives the full text.                                                                                       |
+| `placeholder`           | `string`                                                                                    | Placeholder text shown when the textarea is empty.                                                                                                    |
+| `linePrefix`            | `ReactNode \| (lineNumber: number, totalLines: number, isActiveLine: boolean) => ReactNode` | Optional prefix rendered before each line. Use for line numbers, gutters, borders, etc. Receives `isActiveLine` to highlight active line.             |
+| `highlightActiveLine`   | `boolean`                                                                                   | When `true`, the active line is highlighted with a subtle background color. Defaults to `false`.                                                      |
+| `activeLineColor`       | `string`                                                                                    | Background color for the active line highlight. Defaults to `#262626` (subtle dark gray).                                                             |
+| `cursorInterval`        | `number`                                                                                    | Cursor blink interval in milliseconds. Defaults to `500`.                                                                                             |
+| `typingPause`           | `number`                                                                                    | Milliseconds to wait after typing before resuming cursor blink. Defaults to `450`.                                                                    |
+| `maxUndo`               | `number`                                                                                    | Maximum number of undo steps to retain. Defaults to `128`.                                                                                            |
+| `undoGroupDelay`        | `number`                                                                                    | Milliseconds to group consecutive edits into a single undo step. Defaults to `2500`.                                                                  |
+| `maxTrailingEmptyLines` | `number`                                                                                    | Maximum number of empty lines allowed after the last line with content. Prevents infinite growth when pressing Down arrow or Ctrl+J. Defaults to `3`. |
 
 ## Keybindings
 

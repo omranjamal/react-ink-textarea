@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render } from "ink-testing-library";
-import { TextArea } from "../src/index.js";
+import { TextArea, LineNumber } from "../src/index.js";
 import { Text } from "ink";
 import React from "react";
 
@@ -118,5 +118,57 @@ describe("TextArea", () => {
     const frame = lastFrame()!;
     expect(frame).toContain(">1<");
     expect(frame).toContain("hello");
+  });
+
+  it("passes isActiveLine to linePrefix function", async () => {
+    const linePrefix = vi.fn(() => <Text>{"> "}</Text>);
+    const { stdin } = render(
+      <TextArea isActive={true} onSubmit={() => {}} linePrefix={linePrefix} />,
+    );
+
+    stdin.write("hello");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    expect(linePrefix).toHaveBeenCalled();
+    const lastCall = linePrefix.mock.calls[linePrefix.mock.calls.length - 1];
+    expect(lastCall).toHaveLength(3);
+    expect(typeof lastCall![2]).toBe("boolean");
+  });
+
+  it("highlights active line when highlightActiveLine is enabled", async () => {
+    const { stdin, lastFrame } = render(
+      <TextArea
+        isActive={true}
+        onSubmit={() => {}}
+        highlightActiveLine={true}
+        activeLineColor="cyan"
+      />,
+    );
+
+    stdin.write("hello");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    expect(lastFrame()).toContain("hello");
+  });
+
+  it("renders LineNumber component", () => {
+    const { lastFrame } = render(
+      <LineNumber lineNumber={0} totalLines={10} isActive={false} />,
+    );
+
+    expect(lastFrame()).toContain(" 1");
+  });
+
+  it("renders active LineNumber with active color", () => {
+    const { lastFrame } = render(
+      <LineNumber
+        lineNumber={0}
+        totalLines={10}
+        isActive={true}
+        activeColor="red"
+      />,
+    );
+
+    expect(lastFrame()).toContain(" 1");
   });
 });

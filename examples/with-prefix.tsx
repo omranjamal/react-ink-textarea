@@ -1,7 +1,7 @@
 import { render, Box, Text } from "ink";
 import { useState } from "react";
 import React from "react";
-import { TextArea } from "ink-textarea";
+import { TextArea, LineNumber } from "ink-textarea";
 
 const App = () => {
   const [submitted, setSubmitted] = useState("");
@@ -16,17 +16,17 @@ const App = () => {
         onSubmit={setSubmitted}
         placeholder="Write some code..."
         maxTrailingEmptyLines={3}
-        linePrefix={(lineNumber, totalLines) => {
-          const width = String(totalLines).length;
-          const num = String(lineNumber + 1).padStart(width, " ");
-          return (
-            <Text>
-              <Text color="gray">│ </Text>
-              <Text dimColor>{num}</Text>
-              <Text color="gray"> │ </Text>
-            </Text>
-          );
-        }}
+        linePrefix={(lineNumber, totalLines, isActiveLine) => (
+          <Text>
+            <Text color="gray">│ </Text>
+            <LineNumber
+              lineNumber={lineNumber}
+              totalLines={totalLines}
+              isActive={isActiveLine}
+            />
+            <Text color="gray"> │ </Text>
+          </Text>
+        )}
       />
 
       {submitted && (

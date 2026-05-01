@@ -73,7 +73,11 @@ const getCursorLineAndColumn = (
   return { line, column: cursor - lastLineStart };
 };
 
-type TLinePrefixFn = (lineNumber: number, totalLines: number) => ReactNode;
+type TLinePrefixFn = (
+  lineNumber: number,
+  totalLines: number,
+  isActiveLine: boolean,
+) => ReactNode;
 
 export type TextAreaProps = {
   readonly isActive: boolean;
@@ -85,6 +89,8 @@ export type TextAreaProps = {
   readonly maxUndo?: number;
   readonly undoGroupDelay?: number;
   readonly maxTrailingEmptyLines?: number;
+  readonly highlightActiveLine?: boolean;
+  readonly activeLineColor?: string;
 };
 
 export const TextArea = ({
@@ -97,6 +103,8 @@ export const TextArea = ({
   maxUndo = DEFAULT_MAX_UNDO,
   undoGroupDelay = DEFAULT_UNDO_GROUP_DELAY,
   maxTrailingEmptyLines = DEFAULT_MAX_TRAILING_EMPTY_LINES,
+  highlightActiveLine = false,
+  activeLineColor = undefined,
 }: TextAreaProps): ReactNode => {
   const [value, setValue] = useState("");
   const [cursor, setCursor] = useState(0);
@@ -366,24 +374,46 @@ export const TextArea = ({
     { isActive },
   );
 
+  // Multi-line rendering (minimum 2 visible lines)
+  const lines = value.split("\n");
+  const totalLines = Math.max(lines.length, 2);
+  const hasContent = value.replace(/\n/g, "").length > 0;
+  const { line: cursorLine, column: cursorColumn } = getCursorLineAndColumn(
+    value,
+    cursor,
+  );
+
   const renderLine = (
     content: ReactNode,
     key: string | number,
     lineNumber: number,
-    totalLines: number,
+    totalLinesArg: number,
   ): ReactNode => {
+    const isActiveLine = isActive && lineNumber === cursorLine;
     const prefix =
       typeof linePrefix === "function"
-        ? linePrefix(lineNumber, totalLines)
+        ? linePrefix(lineNumber, totalLinesArg, isActiveLine)
         : linePrefix;
 
+    const isHighlighted = highlightActiveLine && isActiveLine;
+
     return prefix ? (
-      <Box key={key}>
+      <Box
+        key={key}
+        width="100%"
+        backgroundColor={isHighlighted ? activeLineColor : undefined}
+      >
         {prefix}
         {content}
       </Box>
     ) : (
-      <Box key={key}>{content}</Box>
+      <Box
+        key={key}
+        width="100%"
+        backgroundColor={isHighlighted ? activeLineColor : undefined}
+      >
+        {content}
+      </Box>
     );
   };
 
@@ -414,15 +444,6 @@ export const TextArea = ({
       </Box>
     );
   }
-
-  // Multi-line rendering (minimum 2 visible lines)
-  const lines = value.split("\n");
-  const totalLines = Math.max(lines.length, 2);
-  const hasContent = value.replace(/\n/g, "").length > 0;
-  const { line: cursorLine, column: cursorColumn } = getCursorLineAndColumn(
-    value,
-    cursor,
-  );
 
   const renderedLines = lines.map((lineText, lineIdx) => {
     const isCursorLine = lineIdx === cursorLine;
