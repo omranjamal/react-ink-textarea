@@ -26,7 +26,8 @@ const App = () => {
         isActive={true}
         onSubmit={setSubmitted}
         placeholder="Write some code..."
-        emptyAutogrowLimit={3}
+        emptyAutogrowLimit={0}
+        initialLineCount={4}
         onFirstLineUp={() => showBoundaryMessage("[first line up]")}
         onLastLineDown={() => showBoundaryMessage("[last line down]")}
         linePrefix={(lineNumber, totalLines, isActiveLine) => (

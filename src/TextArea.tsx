@@ -7,6 +7,7 @@ const DEFAULT_TYPING_PAUSE = 450;
 const DEFAULT_MAX_UNDO = 128;
 const DEFAULT_UNDO_GROUP_DELAY = 2500;
 const DEFAULT_EMPTY_AUTOGROW_LIMIT = 3;
+const DEFAULT_INITIAL_LINE_COUNT = 2;
 
 const countTrailingEmptyLines = (text: string): number => {
   let count = 0;
@@ -100,6 +101,8 @@ export type TextAreaProps = {
   // Boundary navigation handlers
   readonly onFirstLineUp?: () => void;
   readonly onLastLineDown?: () => void;
+  // Initial line count
+  readonly initialLineCount?: number;
 };
 
 export const TextArea = ({
@@ -123,6 +126,8 @@ export const TextArea = ({
   // Boundary navigation handlers
   onFirstLineUp,
   onLastLineDown,
+  // Initial line count
+  initialLineCount = DEFAULT_INITIAL_LINE_COUNT,
 }: TextAreaProps): ReactNode => {
   const isControlled = controlledValue !== undefined;
   const [internalValue, setInternalValue] = useState("");
@@ -449,9 +454,9 @@ export const TextArea = ({
     { isActive },
   );
 
-  // Multi-line rendering (minimum 2 visible lines)
+  // Multi-line rendering (minimum initialLineCount visible lines)
   const lines = value.split("\n");
-  const totalLines = Math.max(lines.length, 2);
+  const totalLines = Math.max(lines.length, initialLineCount);
   const hasContent = value.replace(/\n/g, "").length > 0;
   const { line: cursorLine, column: cursorColumn } = getCursorLineAndColumn(
     value,
@@ -496,8 +501,15 @@ export const TextArea = ({
   if (value.length === 0 && !isActive && placeholder) {
     return (
       <Box flexDirection="column">
-        {renderLine(<Text dimColor>{placeholder}</Text>, 0, 0, 2)}
-        {renderLine(<Text> </Text>, 1, 1, 2)}
+        {renderLine(
+          <Text dimColor>{placeholder}</Text>,
+          0,
+          0,
+          initialLineCount,
+        )}
+        {Array.from({ length: initialLineCount - 1 }, (_, i) =>
+          renderLine(<Text> </Text>, i + 1, i + 1, initialLineCount),
+        )}
       </Box>
     );
   }
@@ -513,9 +525,11 @@ export const TextArea = ({
           </Text>,
           0,
           0,
-          2,
+          initialLineCount,
         )}
-        {renderLine(<Text> </Text>, 1, 1, 2)}
+        {Array.from({ length: initialLineCount - 1 }, (_, i) =>
+          renderLine(<Text> </Text>, i + 1, i + 1, initialLineCount),
+        )}
       </Box>
     );
   }
