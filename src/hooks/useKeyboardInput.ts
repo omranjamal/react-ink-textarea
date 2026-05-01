@@ -234,7 +234,8 @@ export const useKeyboardInput = ({
         resetBlink();
         pushUndo("delete", value, cursor);
         const lineEnd = findLineEnd(value, cursor);
-        const newValue = value.slice(0, cursor) + value.slice(lineEnd);
+        const killEnd = value[lineEnd] === "\n" ? lineEnd + 1 : lineEnd;
+        const newValue = value.slice(0, cursor) + value.slice(killEnd);
         setValue(newValue);
         setCursor(cursor, newValue);
         return;

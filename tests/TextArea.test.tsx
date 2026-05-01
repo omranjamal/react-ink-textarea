@@ -992,6 +992,33 @@ describe("TextArea", () => {
       expect(lastFrame()).not.toContain("world");
     });
 
+    it("Ctrl+K at end of line joins next line", async () => {
+      const onChange = vi.fn();
+      const { stdin } = render(
+        <TextArea
+          isActive={true}
+          onSubmit={() => {}}
+          onChange={onChange}
+        />,
+      );
+
+      stdin.write("ab");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      stdin.write("\x0A"); // newline → "ab\n"
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      stdin.write("cd");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      // value: "ab\ncd", cursor at end (5)
+      stdin.write("\x01"); // Ctrl+A → start of line 2 (cursor=3)
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      stdin.write("\x1b[D"); // Left arrow → cursor=2 (end of line 1)
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      stdin.write("\x0b"); // Ctrl+K → consume newline + nothing else? cursor at lineEnd, lineEnd char is '\n' → kill it
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(onChange).toHaveBeenLastCalledWith("abcd");
+    });
+
     it("Opt+Left jumps to previous word boundary", async () => {
       const onCursorChange = vi.fn();
       const { stdin } = render(

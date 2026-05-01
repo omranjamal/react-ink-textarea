@@ -48,7 +48,7 @@ Ctrl+Enter for new line`}
         }) => {
           const numWidth = String(totalLines).length;
           const numText = isContinuationLine
-            ? "|".padStart(numWidth, " ")
+            ? "│".padStart(numWidth, " ")
             : String(lineNumber + 1).padStart(numWidth, " ");
           return (
             <Text>
