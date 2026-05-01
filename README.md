@@ -130,6 +130,7 @@ const [cursor, setCursor] = useState(0);
 | `Ctrl+J`        | Insert newline                 |
 | `Ctrl+Enter`    | Insert newline                 |
 | `Shift+Enter`   | Insert newline                 |
+| `Alt+Enter`     | Insert newline (Option+Enter)  |
 | `Enter`         | Submit                         |
 | `↑` / `↓`       | Move cursor between lines      |
 | `←` / `→`       | Move cursor left / right       |

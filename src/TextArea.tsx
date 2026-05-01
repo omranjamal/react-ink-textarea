@@ -225,7 +225,7 @@ export const TextArea = ({
 
   useInput(
     (input, key) => {
-      // Ctrl+J, Ctrl+Enter, or Shift+Enter — insert newline
+      // Ctrl+J, Ctrl+Enter, Shift+Enter, or Alt+Enter — insert newline
       // Also handle kitty keyboard protocol escape sequences
       const isCtrlEnter =
         (key.return && key.ctrl) ||
@@ -235,7 +235,16 @@ export const TextArea = ({
         (key.return && key.shift) ||
         input === "\x1b[27;2;13~" ||
         input.endsWith("[27;2;13~");
-      if ((key.ctrl && input === "j") || isCtrlEnter || isShiftEnter) {
+      const isAltEnter =
+        (key.return && key.meta) ||
+        input === "\x1b[27;3;13~" ||
+        input.endsWith("[27;3;13~");
+      if (
+        (key.ctrl && input === "j") ||
+        isCtrlEnter ||
+        isShiftEnter ||
+        isAltEnter
+      ) {
         resetBlink();
         if (
           cursor >= value.length &&
