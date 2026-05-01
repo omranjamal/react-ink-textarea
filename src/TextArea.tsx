@@ -74,6 +74,39 @@ const getCursorLineAndColumn = (
   return { line, column: cursor - lastLineStart };
 };
 
+const getCursorFromLineColumn = (
+  value: string,
+  line: number,
+  column: number,
+): { cursor: number; clampedLine: number; clampedCol: number } => {
+  const lines = value.split("\n");
+  const numLines = lines.length;
+
+  // Clamp line to valid range
+  const clampedLine = Math.max(0, Math.min(line, numLines - 1));
+
+  // If line was clamped due to exceeding available lines, go to last column
+  // Otherwise clamp column to line length
+  const targetLine = lines[clampedLine] ?? "";
+  let clampedCol: number;
+  if (line > numLines - 1) {
+    // Line exceeded available lines, go to end of last line
+    clampedCol = targetLine.length;
+  } else {
+    // Line is valid, clamp column normally
+    clampedCol = Math.max(0, Math.min(column, targetLine.length));
+  }
+
+  // Calculate cursor position
+  let cursor = 0;
+  for (let i = 0; i < clampedLine; i++) {
+    cursor += lines[i]!.length + 1; // +1 for newline
+  }
+  cursor += clampedCol;
+
+  return { cursor, clampedLine, clampedCol };
+};
+
 type TLinePrefixFn = (
   lineNumber: number,
   totalLines: number,
@@ -95,9 +128,9 @@ export type TextAreaProps = {
   readonly enableArrowNavigation?: boolean;
   // Controlled mode props
   readonly value?: string;
-  readonly cursorPosition?: number;
+  readonly cursorPosition?: [line: number, col: number];
   readonly onChange?: (value: string) => void;
-  readonly onCursorChange?: (position: number) => void;
+  readonly onCursorChange?: (position: [line: number, col: number]) => void;
   // Boundary navigation handlers
   readonly onFirstLineUp?: () => void;
   readonly onLastLineDown?: () => void;
@@ -120,7 +153,7 @@ export const TextArea = ({
   enableArrowNavigation = true,
   // Controlled mode
   value: controlledValue,
-  cursorPosition: controlledCursor,
+  cursorPosition: controlledPosition,
   onChange,
   onCursorChange,
   // Boundary navigation handlers
@@ -133,10 +166,62 @@ export const TextArea = ({
   const [internalValue, setInternalValue] = useState("");
   const [internalCursor, setInternalCursor] = useState(0);
 
+  // Use ref to track latest value for synchronous access in setCursor
+  const valueRef = useRef(isControlled ? controlledValue : internalValue);
   const value = isControlled ? controlledValue : internalValue;
-  const cursor = isControlled
-    ? (controlledCursor ?? internalCursor)
-    : internalCursor;
+
+  // Update ref when value changes
+  useEffect(() => {
+    valueRef.current = value;
+  }, [value]);
+
+  // Track last reported position to avoid duplicate callbacks
+  const lastReportedPosition = useRef<[number, number] | null>(null);
+
+  // Convert external [line, col] to internal cursor position
+  const processExternalPosition = (): {
+    cursor: number;
+    clampedLine: number;
+    clampedCol: number;
+    wasClamped: boolean;
+  } => {
+    if (controlledPosition === undefined) {
+      const { line, column } = getCursorLineAndColumn(value, internalCursor);
+      return {
+        cursor: internalCursor,
+        clampedLine: line,
+        clampedCol: column,
+        wasClamped: false,
+      };
+    }
+    const [line, col] = controlledPosition;
+    const { cursor, clampedLine, clampedCol } = getCursorFromLineColumn(
+      value,
+      line,
+      col,
+    );
+    const wasClamped = line !== clampedLine || col !== clampedCol;
+    return { cursor, clampedLine, clampedCol, wasClamped };
+  };
+
+  const { cursor, clampedLine, clampedCol, wasClamped } =
+    processExternalPosition();
+
+  // Report clamped position if input was out of bounds
+  useEffect(() => {
+    if (wasClamped && onCursorChange) {
+      const newPosition: [number, number] = [clampedLine, clampedCol];
+      // Only report if different from last reported
+      if (
+        lastReportedPosition.current === null ||
+        lastReportedPosition.current[0] !== newPosition[0] ||
+        lastReportedPosition.current[1] !== newPosition[1]
+      ) {
+        lastReportedPosition.current = newPosition;
+        onCursorChange(newPosition);
+      }
+    }
+  }, [wasClamped, clampedLine, clampedCol, onCursorChange]);
 
   const setValue = (updater: string | ((prev: string) => string)) => {
     const newValue = typeof updater === "function" ? updater(value) : updater;
@@ -146,12 +231,33 @@ export const TextArea = ({
     onChange?.(newValue);
   };
 
-  const setCursor = (updater: number | ((prev: number) => number)) => {
+  const setCursor = (
+    updater: number | ((prev: number) => number),
+    valueForCalculation?: string,
+  ) => {
     const newCursor = typeof updater === "function" ? updater(cursor) : updater;
     if (!isControlled) {
       setInternalCursor(newCursor);
     }
-    onCursorChange?.(newCursor);
+    // Report cursor position as [line, col]
+    if (onCursorChange) {
+      // Use provided value for calculation (for when value changes simultaneously), otherwise use current value
+      const valueToUse =
+        valueForCalculation !== undefined
+          ? valueForCalculation
+          : valueRef.current;
+      const { line, column } = getCursorLineAndColumn(valueToUse, newCursor);
+      const newPosition: [number, number] = [line, column];
+      // Only report if different from last reported
+      if (
+        lastReportedPosition.current === null ||
+        lastReportedPosition.current[0] !== newPosition[0] ||
+        lastReportedPosition.current[1] !== newPosition[1]
+      ) {
+        lastReportedPosition.current = newPosition;
+        onCursorChange(newPosition);
+      }
+    }
   };
   const [cursorVisible, setCursorVisible] = useState(true);
   const blinkIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -260,8 +366,9 @@ export const TextArea = ({
       ) {
         resetBlink();
         pushUndo("insert");
-        setValue((v) => v.slice(0, cursor) + "\n" + v.slice(cursor));
-        setCursor((c) => c + 1);
+        const newValue = value.slice(0, cursor) + "\n" + value.slice(cursor);
+        setValue(newValue);
+        setCursor(cursor + 1, newValue);
         return;
       }
 
@@ -317,8 +424,9 @@ export const TextArea = ({
           }
           // On last line — insert a new line and move cursor there
           pushUndo("insert");
-          setValue((v) => v + "\n");
-          setCursor(value.length + 1);
+          const newValue = value + "\n";
+          setValue(newValue);
+          setCursor(newValue.length, newValue);
         } else {
           setCursor((c) => {
             const { column } = getCursorLineAndColumn(value, c);
@@ -379,11 +487,10 @@ export const TextArea = ({
       if (key.ctrl && input === "w") {
         resetBlink();
         pushUndo("delete");
-        setCursor((c) => {
-          const boundary = findPrevWordBoundary(value, c);
-          setValue((v) => v.slice(0, boundary) + v.slice(c));
-          return boundary;
-        });
+        const boundary = findPrevWordBoundary(value, cursor);
+        const newValue = value.slice(0, boundary) + value.slice(cursor);
+        setValue(newValue);
+        setCursor(boundary, newValue);
         return;
       }
 
@@ -391,11 +498,10 @@ export const TextArea = ({
       if (key.ctrl && input === "u") {
         resetBlink();
         pushUndo("delete");
-        setCursor((c) => {
-          const lineStart = findLineStart(value, c);
-          setValue((v) => v.slice(0, lineStart) + v.slice(c));
-          return lineStart;
-        });
+        const lineStart = findLineStart(value, cursor);
+        const newValue = value.slice(0, lineStart) + value.slice(cursor);
+        setValue(newValue);
+        setCursor(lineStart, newValue);
         return;
       }
 
@@ -403,11 +509,10 @@ export const TextArea = ({
       if (key.ctrl && input === "k") {
         resetBlink();
         pushUndo("delete");
-        setCursor((c) => {
-          const lineEnd = findLineEnd(value, c);
-          setValue((v) => v.slice(0, c) + v.slice(lineEnd));
-          return c;
-        });
+        const lineEnd = findLineEnd(value, cursor);
+        const newValue = value.slice(0, cursor) + value.slice(lineEnd);
+        setValue(newValue);
+        setCursor(cursor, newValue);
         return;
       }
 
@@ -418,15 +523,17 @@ export const TextArea = ({
           resetBlink();
           pushUndo("delete");
           const boundary = findPrevWordBoundary(value, cursor);
-          setValue((v) => v.slice(0, boundary) + v.slice(cursor));
-          setCursor(boundary);
+          const newValue = value.slice(0, boundary) + value.slice(cursor);
+          setValue(newValue);
+          setCursor(boundary, newValue);
           return;
         }
         if (cursor > 0) {
           resetBlink();
           pushUndo("delete");
-          setValue((v) => v.slice(0, cursor - 1) + v.slice(cursor));
-          setCursor((c) => c - 1);
+          const newValue = value.slice(0, cursor - 1) + value.slice(cursor);
+          setValue(newValue);
+          setCursor(cursor - 1, newValue);
         }
         return;
       }
@@ -453,8 +560,9 @@ export const TextArea = ({
       if (input && input.length > 0) {
         resetBlink();
         pushUndo("insert");
-        setValue((v) => v.slice(0, cursor) + input + v.slice(cursor));
-        setCursor((c) => c + input.length);
+        const newValue = value.slice(0, cursor) + input + value.slice(cursor);
+        setValue(newValue);
+        setCursor(cursor + input.length, newValue);
       }
     },
     { isActive },

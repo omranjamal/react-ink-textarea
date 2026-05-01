@@ -179,7 +179,7 @@ describe("TextArea", () => {
           isActive={true}
           onSubmit={() => {}}
           value="controlled text"
-          cursorPosition={17} // At the end, so no ANSI in middle
+          cursorPosition={[0, 17]} // At the end, so no ANSI in middle
           onChange={() => {}}
         />,
       );
@@ -213,7 +213,7 @@ describe("TextArea", () => {
           isActive={true}
           onSubmit={() => {}}
           value="hello"
-          cursorPosition={3}
+          cursorPosition={[0, 3]}
           onChange={() => {}}
           onCursorChange={onCursorChange}
         />,
@@ -223,7 +223,7 @@ describe("TextArea", () => {
       stdin.write("\x1b[D"); // Left arrow
 
       // Verify onCursorChange is called with position 2 (moved left from 3)
-      expect(onCursorChange).toHaveBeenCalledWith(2);
+      expect(onCursorChange).toHaveBeenCalledWith([0, 2]);
     });
 
     it("calls onCursorChange when cursor moves in controlled mode", async () => {
@@ -233,7 +233,7 @@ describe("TextArea", () => {
           isActive={true}
           onSubmit={() => {}}
           value="hello"
-          cursorPosition={5}
+          cursorPosition={[0, 5]}
           onChange={() => {}}
           onCursorChange={onCursorChange}
         />,
@@ -242,7 +242,7 @@ describe("TextArea", () => {
       stdin.write("\x1b[D"); // Left arrow
       await new Promise((resolve) => setTimeout(resolve, 50));
 
-      expect(onCursorChange).toHaveBeenCalledWith(4);
+      expect(onCursorChange).toHaveBeenCalledWith([0, 4]);
     });
 
     it("does not update internal state when value prop is provided", async () => {
@@ -252,7 +252,7 @@ describe("TextArea", () => {
           isActive={true}
           onSubmit={() => {}}
           value="fixed"
-          cursorPosition={5}
+          cursorPosition={[0, 5]}
           onChange={onChange}
         />,
       );
@@ -275,7 +275,7 @@ describe("TextArea", () => {
           isActive={true}
           onSubmit={() => {}}
           value="hello"
-          cursorPosition={5}
+          cursorPosition={[0, 5]}
           onChange={onChange}
         />,
       );
@@ -293,7 +293,7 @@ describe("TextArea", () => {
           isActive={true}
           onSubmit={() => {}}
           value="line1"
-          cursorPosition={5}
+          cursorPosition={[0, 5]}
           onChange={onChange}
         />,
       );
@@ -302,6 +302,143 @@ describe("TextArea", () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
 
       expect(onChange).toHaveBeenCalledWith("line1\n");
+    });
+
+    it("clamps cursor to last line when line exceeds available lines", async () => {
+      const onCursorChange = vi.fn();
+      render(
+        <TextArea
+          isActive={true}
+          onSubmit={() => {}}
+          value="hello"
+          cursorPosition={[100, 0]} // Way beyond available lines
+          onChange={() => {}}
+          onCursorChange={onCursorChange}
+        />,
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // Should clamp to line 0 (the only line), column 5 (end of "hello")
+      expect(onCursorChange).toHaveBeenCalledWith([0, 5]);
+    });
+
+    it("clamps cursor to last column when column exceeds line length", async () => {
+      const onCursorChange = vi.fn();
+      render(
+        <TextArea
+          isActive={true}
+          onSubmit={() => {}}
+          value="hi"
+          cursorPosition={[0, 100]} // Way beyond line length
+          onChange={() => {}}
+          onCursorChange={onCursorChange}
+        />,
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // Should clamp to column 2 (length of "hi")
+      expect(onCursorChange).toHaveBeenCalledWith([0, 2]);
+    });
+
+    it("clamps negative line to 0", async () => {
+      const onCursorChange = vi.fn();
+      render(
+        <TextArea
+          isActive={true}
+          onSubmit={() => {}}
+          value="hello"
+          cursorPosition={[-5, 2]} // Negative line
+          onChange={() => {}}
+          onCursorChange={onCursorChange}
+        />,
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // Should clamp to line 0, column 2
+      expect(onCursorChange).toHaveBeenCalledWith([0, 2]);
+    });
+
+    it("clamps negative column to 0", async () => {
+      const onCursorChange = vi.fn();
+      render(
+        <TextArea
+          isActive={true}
+          onSubmit={() => {}}
+          value="hello"
+          cursorPosition={[0, -10]} // Negative column
+          onChange={() => {}}
+          onCursorChange={onCursorChange}
+        />,
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // Should clamp to column 0
+      expect(onCursorChange).toHaveBeenCalledWith([0, 0]);
+    });
+
+    it("handles Infinity as line value", async () => {
+      const onCursorChange = vi.fn();
+      render(
+        <TextArea
+          isActive={true}
+          onSubmit={() => {}}
+          value={"line1\nline2\nline3"}
+          cursorPosition={[Infinity, 0]}
+          onChange={() => {}}
+          onCursorChange={onCursorChange}
+        />,
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // Should clamp to last line (line 2), column 5 ("line3" length)
+      expect(onCursorChange).toHaveBeenCalledWith([2, 5]);
+    });
+
+    it("handles Infinity as column value", async () => {
+      const onCursorChange = vi.fn();
+      render(
+        <TextArea
+          isActive={true}
+          onSubmit={() => {}}
+          value="test"
+          cursorPosition={[0, Infinity]}
+          onChange={() => {}}
+          onCursorChange={onCursorChange}
+        />,
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // Should clamp to column 4 (length of "test")
+      expect(onCursorChange).toHaveBeenCalledWith([0, 4]);
+    });
+
+    it("correctly positions cursor on specific line in multi-line text", async () => {
+      const onCursorChange = vi.fn();
+      const { stdin } = render(
+        <TextArea
+          isActive={true}
+          onSubmit={() => {}}
+          value={"line1\nline2\nline3"}
+          cursorPosition={[1, 3]} // Line 2, column 4
+          onChange={() => {}}
+          onCursorChange={onCursorChange}
+        />,
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // Move right to verify position
+      stdin.write("\x1b[C"); // Right arrow
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // Should have moved from column 3 to column 4 on line 1
+      expect(onCursorChange).toHaveBeenLastCalledWith([1, 4]);
     });
   });
 
@@ -313,7 +450,7 @@ describe("TextArea", () => {
           isActive={true}
           onSubmit={() => {}}
           value="hello"
-          cursorPosition={0}
+          cursorPosition={[0, 0]}
           onChange={() => {}}
           onCursorChange={onCursorChange}
           enableArrowNavigation={true}
@@ -323,7 +460,7 @@ describe("TextArea", () => {
       stdin.write("\x1b[C"); // Right arrow
       await new Promise((resolve) => setTimeout(resolve, 50));
 
-      expect(onCursorChange).toHaveBeenCalledWith(1);
+      expect(onCursorChange).toHaveBeenCalledWith([0, 1]);
     });
 
     it("does not move cursor with arrow keys when enableArrowNavigation is false", async () => {
@@ -333,7 +470,7 @@ describe("TextArea", () => {
           isActive={true}
           onSubmit={() => {}}
           value="hello"
-          cursorPosition={0}
+          cursorPosition={[0, 0]}
           onChange={() => {}}
           onCursorChange={onCursorChange}
           enableArrowNavigation={false}
@@ -371,7 +508,7 @@ describe("TextArea", () => {
           isActive={true}
           onSubmit={() => {}}
           value="line1"
-          cursorPosition={5}
+          cursorPosition={[0, 5]}
           onChange={onChange}
           enableArrowNavigation={false}
         />,
@@ -390,12 +527,16 @@ describe("TextArea", () => {
           isActive={true}
           onSubmit={() => {}}
           value="hello\nworld"
-          cursorPosition={6}
+          cursorPosition={[1, 0]}
           onChange={() => {}}
           onCursorChange={onCursorChange}
           enableArrowNavigation={false}
         />,
       );
+
+      // Wait for initial position report
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      const initialCalls = onCursorChange.mock.calls.length;
 
       // Try all four directions
       stdin.write("\x1b[A"); // Up
@@ -407,7 +548,8 @@ describe("TextArea", () => {
       stdin.write("\x1b[C"); // Right
       await new Promise((resolve) => setTimeout(resolve, 20));
 
-      expect(onCursorChange).not.toHaveBeenCalled();
+      // Should only have initial call, no additional calls from arrows
+      expect(onCursorChange).toHaveBeenCalledTimes(initialCalls);
     });
   });
 
@@ -419,7 +561,7 @@ describe("TextArea", () => {
           isActive={true}
           onSubmit={() => {}}
           value="hello"
-          cursorPosition={3}
+          cursorPosition={[0, 3]}
           onChange={() => {}}
           onFirstLineUp={onFirstLineUp}
         />,
@@ -469,7 +611,7 @@ describe("TextArea", () => {
           isActive={true}
           onSubmit={() => {}}
           value="line1\nline2"
-          cursorPosition={7} // On second line
+          cursorPosition={[1, 2]} // On second line
           onChange={() => {}}
           onCursorChange={onCursorChange}
         />,
@@ -488,7 +630,7 @@ describe("TextArea", () => {
           isActive={true}
           onSubmit={() => {}}
           value="line1\nline2"
-          cursorPosition={2} // On first line
+          cursorPosition={[0, 2]} // On first line
           onChange={() => {}}
           onCursorChange={onCursorChange}
         />,
