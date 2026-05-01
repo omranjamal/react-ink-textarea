@@ -67,45 +67,32 @@ export const chunkString = (text: string, width: number): string[] => {
   return chunks;
 };
 
-export const buildChunkedCursorLine = (
+export const chunkLineForCursor = (
   lineText: string,
   cursorColumn: number,
   lineWidth: number,
-  cursorVisible: boolean,
-): string => {
-  const atCursorChar = lineText[cursorColumn] ?? " ";
-  const cursorStr = cursorVisible
-    ? `\x1b[7m${atCursorChar}\x1b[27m`
-    : atCursorChar === " " && cursorColumn >= lineText.length
-      ? " "
-      : atCursorChar;
-
-  if (lineWidth <= 0) {
-    return lineText.slice(0, cursorColumn) + cursorStr + lineText.slice(cursorColumn + 1);
-  }
-
+): string[] => {
+  if (lineWidth <= 0) return [lineText];
   const totalLen = Math.max(lineText.length, cursorColumn + 1);
-  const numChunks = Math.ceil(totalLen / lineWidth);
-  const chunkIdx = Math.floor(cursorColumn / lineWidth);
-  const posInChunk = cursorColumn % lineWidth;
+  const numChunks = Math.max(1, Math.ceil(totalLen / lineWidth));
+  return Array.from({ length: numChunks }, (_, i) =>
+    lineText.slice(i * lineWidth, (i + 1) * lineWidth),
+  );
+};
 
-  const parts: string[] = [];
-  for (let i = 0; i < numChunks; i++) {
-    const chunk = lineText.slice(i * lineWidth, (i + 1) * lineWidth);
-    if (i === chunkIdx) {
-      const before = chunk.slice(0, posInChunk);
-      const atCursor = chunk[posInChunk] ?? " ";
-      const cs = cursorVisible
-        ? `\x1b[7m${atCursor}\x1b[27m`
-        : atCursor === " " && cursorColumn >= lineText.length
-          ? " "
-          : atCursor;
-      parts.push(before + cs + chunk.slice(posInChunk + 1));
-    } else {
-      parts.push(chunk || " ");
-    }
-  }
-  return parts.join("\n");
+export const renderChunkWithCursor = (
+  chunk: string,
+  posInChunk: number,
+  cursorVisible: boolean,
+  isAtLineEnd: boolean,
+): string => {
+  const atCursor = chunk[posInChunk] ?? " ";
+  const cs = cursorVisible
+    ? `\x1b[7m${atCursor}\x1b[27m`
+    : atCursor === " " && isAtLineEnd
+      ? " "
+      : atCursor;
+  return chunk.slice(0, posInChunk) + cs + chunk.slice(posInChunk + 1);
 };
 
 export const computeVisualUpCursor = (

@@ -13,7 +13,8 @@ import {
 import {
   getCursorLineAndColumn,
   chunkString,
-  buildChunkedCursorLine,
+  chunkLineForCursor,
+  renderChunkWithCursor,
 } from "./textUtils.js";
 import { useCursorState } from "./hooks/useCursorState.js";
 import { useUndo } from "./hooks/useUndo.js";
@@ -112,14 +113,18 @@ export const TextArea = ({
     lineNumber: number,
     totalLinesArg: number,
     isVirtualLine: boolean,
-    ref?: { current: DOMElement | null },
+    ref: { current: DOMElement | null } | undefined,
+    isContinuationLine: boolean,
+    continuationIndex: number,
+    isActiveLine: boolean,
   ): ReactNode => {
-    const isActiveLine = isActive && lineNumber === cursorLine;
     const prefixProps: TLinePrefixProps = {
       lineNumber,
       totalLines: totalLinesArg,
       isActiveLine,
       isVirtualLine,
+      isContinuationLine,
+      continuationIndex,
     };
     const prefix =
       typeof linePrefix === "function" ? linePrefix(prefixProps) : linePrefix;
@@ -164,6 +169,9 @@ export const TextArea = ({
             initialLineCount,
             i > 0,
             i === 0 ? contentRef : undefined,
+            false,
+            0,
+            false,
           ),
         )}
       </Box>
@@ -186,6 +194,9 @@ export const TextArea = ({
             initialLineCount,
             i > 0,
             i === 0 ? contentRef : undefined,
+            false,
+            0,
+            isActive && i === cursorLine,
           ),
         )}
       </Box>
@@ -196,47 +207,71 @@ export const TextArea = ({
     ? Math.max(lines.length, initialLineCount)
     : lines.length;
 
-  const renderedLines = Array.from({ length: linesToRender }, (_, lineIdx) => {
-    const lineText = lines[lineIdx] ?? "";
-    const isCursorLine = lineIdx === cursorLine;
-    const isVirtualLine = lineIdx >= lines.length;
+  const renderedLines: ReactNode[] = [];
 
-    if (!isCursorLine || !isActive) {
-      const displayText = lineWidth > 0
-        ? chunkString(lineText, lineWidth).join("\n") || " "
-        : lineText || " ";
-      return renderLine(
-        <Text>
-          {displayText}
-          {placeholderLines[lineIdx] && !hasContent ? (
-            <Text dimColor>{placeholderLines[lineIdx]}</Text>
-          ) : null}
-        </Text>,
-        lineIdx,
-        lineIdx,
-        totalLines,
-        isVirtualLine,
-        lineIdx === 0 ? contentRef : undefined,
-      );
+  for (let lineIdx = 0; lineIdx < linesToRender; lineIdx++) {
+    const lineText = lines[lineIdx] ?? "";
+    const isVirtualLine = lineIdx >= lines.length;
+    const isCursorLine = isActive && lineIdx === cursorLine;
+
+    let chunks: string[];
+    if (lineWidth > 0) {
+      chunks = isCursorLine
+        ? chunkLineForCursor(lineText, cursorColumn, lineWidth)
+        : lineText.length > 0
+          ? chunkString(lineText, lineWidth)
+          : [""];
+    } else {
+      chunks = [lineText];
     }
 
-    return renderLine(
-      <Text>
-        {buildChunkedCursorLine(lineText, cursorColumn, lineWidth, cursorVisible)}
-        {placeholderLines[lineIdx] && !hasContent ? (
-          <Text dimColor>{placeholderLines[lineIdx]}</Text>
-        ) : null}
-      </Text>,
-      lineIdx,
-      lineIdx,
-      totalLines,
-      isVirtualLine,
-      lineIdx === 0 ? contentRef : undefined,
-    );
-  });
+    const cursorVisualRow =
+      isCursorLine && lineWidth > 0 ? Math.floor(cursorColumn / lineWidth) : 0;
 
-  while (renderedLines.length < initialLineCount) {
-    const padIdx = renderedLines.length;
+    for (let c = 0; c < chunks.length; c++) {
+      const chunk = chunks[c]!;
+      const isContinuation = c > 0;
+      const isActiveRow = isCursorLine && c === cursorVisualRow;
+
+      let bodyText: string;
+      if (isActiveRow) {
+        const posInChunk =
+          lineWidth > 0 ? cursorColumn % lineWidth : cursorColumn;
+        bodyText = renderChunkWithCursor(
+          chunk,
+          posInChunk,
+          cursorVisible,
+          cursorColumn >= lineText.length,
+        );
+      } else {
+        bodyText = chunk || " ";
+      }
+
+      const showPlaceholder =
+        !isContinuation && placeholderLines[lineIdx] && !hasContent;
+
+      renderedLines.push(
+        renderLine(
+          <Text>
+            {bodyText}
+            {showPlaceholder ? (
+              <Text dimColor>{placeholderLines[lineIdx]}</Text>
+            ) : null}
+          </Text>,
+          `${lineIdx}-${c}`,
+          lineIdx,
+          totalLines,
+          isVirtualLine,
+          lineIdx === 0 && c === 0 ? contentRef : undefined,
+          isContinuation,
+          c,
+          isActiveRow,
+        ),
+      );
+    }
+  }
+
+  for (let padIdx = linesToRender; padIdx < initialLineCount; padIdx++) {
     renderedLines.push(
       renderLine(
         <Text>
@@ -246,10 +281,14 @@ export const TextArea = ({
             " "
           )}
         </Text>,
-        padIdx,
+        `pad-${padIdx}`,
         padIdx,
         totalLines,
         true,
+        undefined,
+        false,
+        0,
+        false,
       ),
     );
   }

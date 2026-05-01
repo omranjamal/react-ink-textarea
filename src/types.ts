@@ -5,6 +5,8 @@ export type TLinePrefixProps = {
   readonly totalLines: number;
   readonly isActiveLine: boolean;
   readonly isVirtualLine: boolean;
+  readonly isContinuationLine: boolean;
+  readonly continuationIndex: number;
 };
 
 export type TLinePrefixFn = (props: TLinePrefixProps) => ReactNode;

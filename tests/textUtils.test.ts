@@ -8,7 +8,8 @@ import {
   getCursorLineAndColumn,
   getCursorFromLineColumn,
   chunkString,
-  buildChunkedCursorLine,
+  chunkLineForCursor,
+  renderChunkWithCursor,
   computeVisualUpCursor,
   computeVisualDownCursor,
 } from "../src/textUtils.js";
@@ -288,67 +289,50 @@ describe("chunkString", () => {
   });
 });
 
-describe("buildChunkedCursorLine", () => {
+describe("chunkLineForCursor", () => {
+  it("returns whole line when lineWidth=0", () => {
+    expect(chunkLineForCursor("hello", 2, 0)).toEqual(["hello"]);
+  });
+
+  it("splits line into chunks of lineWidth", () => {
+    expect(chunkLineForCursor("abcdefghij", 0, 5)).toEqual(["abcde", "fghij"]);
+  });
+
+  it("adds extra empty chunk when cursor at exact width boundary past end", () => {
+    expect(chunkLineForCursor("abcde", 5, 5)).toEqual(["abcde", ""]);
+  });
+
+  it("returns single empty chunk for empty line", () => {
+    expect(chunkLineForCursor("", 0, 5)).toEqual([""]);
+  });
+});
+
+describe("renderChunkWithCursor", () => {
   const strip = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, "");
 
-  it("no chunking (lineWidth=0): places cursor correctly in text", () => {
-    const result = buildChunkedCursorLine("hello", 2, 0, true);
+  it("places cursor on a character", () => {
+    const result = renderChunkWithCursor("hello", 2, true, false);
     expect(result).toContain("\x1b[7ml\x1b[27m");
     expect(strip(result)).toBe("hello");
   });
 
-  it("cursor at end renders highlighted space when visible", () => {
-    const result = buildChunkedCursorLine("hi", 2, 0, true);
+  it("renders highlighted space at cursor past end when visible", () => {
+    const result = renderChunkWithCursor("hi", 2, true, true);
     expect(result).toContain("\x1b[7m \x1b[27m");
     expect(strip(result)).toBe("hi ");
   });
 
-  it("cursor invisible at end renders plain space", () => {
-    expect(buildChunkedCursorLine("hi", 2, 0, false)).toBe("hi ");
+  it("renders plain space at cursor past end when invisible", () => {
+    expect(renderChunkWithCursor("hi", 2, false, true)).toBe("hi ");
   });
 
-  it("cursor invisible on a character renders that character", () => {
-    expect(buildChunkedCursorLine("hello", 1, 0, false)).toBe("hello");
+  it("renders plain character when cursor on char and invisible", () => {
+    expect(renderChunkWithCursor("hello", 1, false, false)).toBe("hello");
   });
 
-  it("with lineWidth: joins chunks with newlines", () => {
-    const result = buildChunkedCursorLine("abcdefghij", 0, 5, false);
-    expect(result.split("\n")).toHaveLength(2);
-  });
-
-  it("cursor in first chunk places ANSI correctly, second chunk is plain", () => {
-    // text="abcdefghij", cursor=2, lineWidth=5 → cursor on 'c' in chunk 0
-    const result = buildChunkedCursorLine("abcdefghij", 2, 5, true);
-    const lines = result.split("\n");
-    expect(lines).toHaveLength(2);
-    expect(lines[0]).toContain("\x1b[7mc\x1b[27m");
-    expect(strip(lines[0]!)).toBe("abcde");
-    expect(lines[1]).toBe("fghij");
-  });
-
-  it("cursor in second chunk places ANSI correctly, first chunk is plain", () => {
-    // text="abcdefghij", cursor=7, lineWidth=5 → cursor on 'h' (posInChunk=2) in chunk 1
-    const result = buildChunkedCursorLine("abcdefghij", 7, 5, true);
-    const lines = result.split("\n");
-    expect(lines).toHaveLength(2);
-    expect(lines[0]).toBe("abcde");
-    expect(lines[1]).toContain("\x1b[7mh\x1b[27m");
-    expect(strip(lines[1]!)).toBe("fghij");
-  });
-
-  it("cursor at exact lineWidth boundary creates extra chunk with cursor space", () => {
-    // text="abcde" (5 chars), cursor=5, lineWidth=5 → cursor space in chunk 1
-    const result = buildChunkedCursorLine("abcde", 5, 5, true);
-    const lines = result.split("\n");
-    expect(lines).toHaveLength(2);
-    expect(strip(lines[0]!)).toBe("abcde");
-    expect(lines[1]).toContain("\x1b[7m \x1b[27m");
-  });
-
-  it("empty text with lineWidth renders cursor space in single chunk", () => {
-    const result = buildChunkedCursorLine("", 0, 5, true);
+  it("renders highlighted cursor in empty chunk", () => {
+    const result = renderChunkWithCursor("", 0, true, true);
     expect(result).toContain("\x1b[7m \x1b[27m");
-    expect(result.split("\n")).toHaveLength(1);
   });
 });
 

@@ -44,19 +44,30 @@ Ctrl+Enter for new line`}
           totalLines,
           isActiveLine,
           isVirtualLine,
-        }) => (
-          <Text>
-            <Text color="gray">│ </Text>
-            <Text
-              color={
-                isVirtualLine ? "gray" : isActiveLine ? "magenta" : "white"
-              }
-            >
-              {String(lineNumber + 1).padStart(String(totalLines).length, " ")}
+          isContinuationLine,
+        }) => {
+          const numWidth = String(totalLines).length;
+          const numText = isContinuationLine
+            ? " ".repeat(numWidth)
+            : String(lineNumber + 1).padStart(numWidth, " ");
+          return (
+            <Text>
+              <Text color={isActiveLine ? "magenta" : "gray"}>│ </Text>
+              <Text
+                color={
+                  isVirtualLine || isContinuationLine
+                    ? "gray"
+                    : isActiveLine
+                      ? "magenta"
+                      : "white"
+                }
+              >
+                {numText}
+              </Text>
+              <Text color={isActiveLine ? "magenta" : "gray"}> │ </Text>
             </Text>
-            <Text color={isActiveLine ? "magenta" : "gray"}> │ </Text>
-          </Text>
-        )}
+          );
+        }}
       />
 
       <Text dimColor>
