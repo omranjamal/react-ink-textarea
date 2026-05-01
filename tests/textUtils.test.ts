@@ -108,13 +108,18 @@ describe("findPrevWordBoundary", () => {
     expect(findPrevWordBoundary("hello world", 11)).toBe(6);
   });
 
-  it("stays at line start, does not cross newline", () => {
-    // "hello\nworld" — cursor at 8 (mid 'world') → should not go past line start (6)
+  it("jumps to start of word on current line", () => {
+    // "hello\nworld" — cursor at 8 (mid 'world') → start of 'world' (6)
     expect(findPrevWordBoundary("hello\nworld", 8)).toBe(6);
   });
 
-  it("returns line start when at beginning of line", () => {
-    expect(findPrevWordBoundary("hello\nworld", 6)).toBe(6);
+  it("crosses newline to start of word on previous line", () => {
+    // cursor at 6 (start of 'world') → skip '\n', skip 'hello' → 0
+    expect(findPrevWordBoundary("hello\nworld", 6)).toBe(0);
+  });
+
+  it("crosses multiple blank lines to previous word", () => {
+    expect(findPrevWordBoundary("hello\n\n\nworld", 8)).toBe(0);
   });
 
   it("handles single character word", () => {
@@ -123,7 +128,7 @@ describe("findPrevWordBoundary", () => {
 });
 
 describe("findNextWordBoundary", () => {
-  it("returns line end when at end of word on last line", () => {
+  it("returns end of string when at start of last word", () => {
     expect(findNextWordBoundary("hello", 0)).toBe(5);
   });
 
@@ -137,12 +142,17 @@ describe("findNextWordBoundary", () => {
     expect(findNextWordBoundary("hello world", 5)).toBe(6);
   });
 
-  it("does not cross newline", () => {
-    expect(findNextWordBoundary("hello\nworld", 0)).toBe(5);
+  it("crosses newline to next word", () => {
+    // from pos 0: skip 'hello', skip '\n', land at 'w' on next line (6)
+    expect(findNextWordBoundary("hello\nworld", 0)).toBe(6);
   });
 
-  it("returns line end when already at line end", () => {
-    expect(findNextWordBoundary("hello\nworld", 5)).toBe(5);
+  it("from newline: skips newline to next word", () => {
+    expect(findNextWordBoundary("hello\nworld", 5)).toBe(6);
+  });
+
+  it("crosses multiple blank lines to next word", () => {
+    expect(findNextWordBoundary("hello\n\n\nworld", 5)).toBe(8);
   });
 });
 

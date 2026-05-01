@@ -22,27 +22,25 @@ export const findLineEnd = (value: string, cursor: number): number => {
 };
 
 export const findPrevWordBoundary = (value: string, cursor: number): number => {
-  const lineStart = findLineStart(value, cursor);
   let pos = cursor - 1;
-  while (pos > lineStart && /\s/.test(value[pos]!) && value[pos] !== "\n") {
+  while (pos >= 0 && /\s/.test(value[pos]!)) {
     pos -= 1;
   }
-  while (pos > lineStart && !/\s/.test(value[pos - 1]!)) {
+  while (pos >= 0 && !/\s/.test(value[pos]!)) {
     pos -= 1;
   }
-  return Math.max(lineStart, pos);
+  return pos + 1;
 };
 
 export const findNextWordBoundary = (value: string, cursor: number): number => {
-  const lineEnd = findLineEnd(value, cursor);
   let pos = cursor;
-  while (pos < lineEnd && !/\s/.test(value[pos]!)) {
+  while (pos < value.length && !/\s/.test(value[pos]!)) {
     pos += 1;
   }
-  while (pos < lineEnd && /\s/.test(value[pos]!) && value[pos] !== "\n") {
+  while (pos < value.length && /\s/.test(value[pos]!)) {
     pos += 1;
   }
-  return Math.min(lineEnd, pos);
+  return pos;
 };
 
 export const getCursorLineAndColumn = (
