@@ -1,0 +1,124 @@
+# ink-textarea
+
+> A multiline textarea component for [Ink](https://github.com/vadimdemedes/ink)
+
+Build rich CLI forms with a full-featured textarea that supports multi-line editing, cursor navigation, undo, and customizable line prefixes.
+
+## Install
+
+```bash
+npm install ink-textarea
+# or
+yarn add ink-textarea
+# or
+pnpm add ink-textarea
+```
+
+## Usage
+
+### Basic
+
+```tsx
+import { render } from "ink";
+import { useState } from "react";
+import { TextArea } from "ink-textarea";
+
+const App = () => {
+  const [submitted, setSubmitted] = useState("");
+  const [isActive, setIsActive] = useState(true);
+
+  const handleSubmit = (value: string) => {
+    setSubmitted(value);
+    setIsActive(false);
+  };
+
+  return (
+    <TextArea
+      isActive={isActive}
+      onSubmit={handleSubmit}
+      placeholder="Type your message here..."
+    />
+  );
+};
+
+render(<App />);
+```
+
+### With Line Prefix
+
+Render line numbers, borders, or any custom prefix before each line:
+
+```tsx
+<TextArea
+  isActive={true}
+  onSubmit={(value) => console.log(value)}
+  placeholder="Write some code..."
+  linePrefix={(lineNumber, totalLines) => {
+    const width = String(totalLines).length;
+    const num = String(lineNumber + 1).padStart(width, " ");
+    return (
+      <Text>
+        <Text color="gray">│</Text>
+        <Text dimColor>{num}</Text>
+        <Text color="gray"> │ </Text>
+      </Text>
+    );
+  }}
+/>
+```
+
+## Props
+
+| Prop                    | Type                                                                 | Description                                                                                                                                           |
+| ----------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `isActive`              | `boolean`                                                            | Whether the textarea is focused and receiving keyboard input.                                                                                         |
+| `onSubmit`              | `(value: string) => void`                                            | Called when the user presses **Enter**. Receives the full text.                                                                                       |
+| `placeholder`           | `string`                                                             | Placeholder text shown when the textarea is empty.                                                                                                    |
+| `linePrefix`            | `ReactNode \| (lineNumber: number, totalLines: number) => ReactNode` | Optional prefix rendered before each line. Use for line numbers, gutters, borders, etc.                                                               |
+| `cursorInterval`        | `number`                                                             | Cursor blink interval in milliseconds. Defaults to `500`.                                                                                             |
+| `typingPause`           | `number`                                                             | Milliseconds to wait after typing before resuming cursor blink. Defaults to `450`.                                                                    |
+| `maxUndo`               | `number`                                                             | Maximum number of undo steps to retain. Defaults to `128`.                                                                                            |
+| `undoGroupDelay`        | `number`                                                             | Milliseconds to group consecutive edits into a single undo step. Defaults to `2500`.                                                                  |
+| `maxTrailingEmptyLines` | `number`                                                             | Maximum number of empty lines allowed after the last line with content. Prevents infinite growth when pressing Down arrow or Ctrl+J. Defaults to `3`. |
+
+## Keybindings
+
+| Key             | Action                         |
+| --------------- | ------------------------------ |
+| `Ctrl+J`        | Insert newline                 |
+| `Enter`         | Submit                         |
+| `↑` / `↓`       | Move cursor between lines      |
+| `←` / `→`       | Move cursor left / right       |
+| `Opt+←`         | Jump to previous word          |
+| `Opt+→`         | Jump to next word              |
+| `Ctrl+A`        | Start of current line          |
+| `Ctrl+E`        | End of current line            |
+| `Ctrl+W`        | Delete word before cursor      |
+| `Ctrl+U`        | Delete to start of line        |
+| `Ctrl+K`        | Delete to end of line          |
+| `Backspace`     | Delete character before cursor |
+| `Opt+Backspace` | Delete word before cursor      |
+| `Ctrl+Z`        | Undo (up to 128 steps)         |
+
+## Development
+
+```bash
+# Install dependencies
+pnpm install
+
+# Build
+pnpm run build
+
+# Watch mode
+pnpm run dev
+
+# Run tests
+pnpm test
+
+# Format code
+pnpm run format
+```
+
+## License
+
+MIT

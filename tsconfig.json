@@ -1,0 +1,22 @@
+{
+  "include": ["./src/**/*"],
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "rootDir": "./src",
+    "moduleResolution": "bundler",
+    "outDir": "./dist",
+    "lib": ["ESNext"],
+    "types": ["node"],
+    "declaration": true,
+    "declarationMap": true,
+    "inlineSourceMap": true,
+    "inlineSources": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "jsx": "react-jsx"
+  }
+}
