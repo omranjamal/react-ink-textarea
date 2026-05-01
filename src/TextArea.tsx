@@ -668,8 +668,8 @@ export const TextArea = ({
       return renderLine(
         <Text>
           {lineText || " "}
-          {lineIdx === 0 && !hasContent && placeholder ? (
-            <Text dimColor>{placeholder}</Text>
+          {placeholderLines[lineIdx] && !hasContent ? (
+            <Text dimColor>{placeholderLines[lineIdx]}</Text>
           ) : null}
         </Text>,
         lineIdx,
@@ -692,8 +692,8 @@ export const TextArea = ({
             ? " "
             : atCursor}
         {after}
-        {lineIdx === 0 && !hasContent && placeholder ? (
-          <Text dimColor>{placeholder}</Text>
+        {placeholderLines[lineIdx] && !hasContent ? (
+          <Text dimColor>{placeholderLines[lineIdx]}</Text>
         ) : null}
       </Text>,
       lineIdx,
