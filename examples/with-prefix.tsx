@@ -29,6 +29,7 @@ const App = () => {
         onSubmit={setSubmitted}
         placeholder={`Write some code...
 Use arrow keys to navigate
+
 Ctrl+Enter for new line`}
         autoNewLineLimit={4}
         initialLineCount={4}

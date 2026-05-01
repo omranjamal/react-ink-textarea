@@ -661,7 +661,13 @@ export const TextArea = ({
     );
   }
 
-  const renderedLines = lines.map((lineText, lineIdx) => {
+  // When no content, ensure we render up to initialLineCount to show all placeholder lines
+  const linesToRender = !hasContent
+    ? Math.max(lines.length, initialLineCount)
+    : lines.length;
+
+  const renderedLines = Array.from({ length: linesToRender }, (_, lineIdx) => {
+    const lineText = lines[lineIdx] ?? "";
     const isCursorLine = lineIdx === cursorLine;
 
     if (!isCursorLine || !isActive) {
@@ -707,7 +713,19 @@ export const TextArea = ({
   while (renderedLines.length < initialLineCount) {
     const padIdx = renderedLines.length;
     renderedLines.push(
-      renderLine(<Text> </Text>, `pad-${padIdx}`, padIdx, totalLines, true),
+      renderLine(
+        <Text>
+          {placeholderLines[padIdx] && !hasContent ? (
+            <Text dimColor>{placeholderLines[padIdx]}</Text>
+          ) : (
+            " "
+          )}
+        </Text>,
+        `pad-${padIdx}`,
+        padIdx,
+        totalLines,
+        true,
+      ),
     );
   }
 
