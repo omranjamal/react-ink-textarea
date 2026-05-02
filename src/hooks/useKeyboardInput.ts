@@ -8,7 +8,11 @@ import {
   getCursorLineAndColumn,
   computeVisualUpCursor,
   computeVisualDownCursor,
+  prevGraphemeOffset,
+  nextGraphemeOffset,
+  visualRowForCursor,
 } from "../textUtils.js";
+import type { VisualRow } from "../textUtils.js";
 
 type UseKeyboardInputOptions = {
   isActive: boolean;
@@ -19,16 +23,18 @@ type UseKeyboardInputOptions = {
   onSubmit: (value: string) => void;
   onFirstLineUp: (() => void) | undefined;
   onLastLineDown: (() => void) | undefined;
+  onTab: ((shift: boolean) => void) | undefined;
   setValue: (updater: string | ((prev: string) => string)) => void;
-  setCursor: (
-    updater: number | ((prev: number) => number),
-    valueForCalculation?: string,
-  ) => void;
+  setCursor: {
+    (updater: (prev: number) => number): void;
+    (value: number, valueForCalculation?: string): void;
+  };
   pushUndo: (type: "insert" | "delete", value: string, cursor: number) => void;
   popUndo: () => { value: string; cursor: number } | undefined;
   resetMutationTracking: () => void;
   resetBlink: () => void;
   lineWidth: number;
+  visualRows: readonly VisualRow[];
 };
 
 export const useKeyboardInput = ({
@@ -40,6 +46,7 @@ export const useKeyboardInput = ({
   onSubmit,
   onFirstLineUp,
   onLastLineDown,
+  onTab,
   setValue,
   setCursor,
   pushUndo,
@@ -47,6 +54,7 @@ export const useKeyboardInput = ({
   resetMutationTracking,
   resetBlink,
   lineWidth,
+  visualRows,
 }: UseKeyboardInputOptions): void => {
   usePaste(
     (text) => {
@@ -58,6 +66,7 @@ export const useKeyboardInput = ({
         value.slice(0, cursor) + normalized + value.slice(cursor);
       setValue(newValue);
       setCursor(cursor + normalized.length, newValue);
+      resetMutationTracking();
     },
     { isActive },
   );
@@ -100,13 +109,13 @@ export const useKeyboardInput = ({
         const { line, column } = getCursorLineAndColumn(value, cursor);
 
         if (lineWidth > 0) {
-          const visualRow = Math.floor(column / lineWidth);
-          if (line === 0 && visualRow === 0) {
+          const idx = visualRowForCursor(visualRows, line, column, lineWidth);
+          if (idx <= 0) {
             if (onFirstLineUp) onFirstLineUp();
             return;
           }
           resetBlink();
-          setCursor((c) => computeVisualUpCursor(value, c, lineWidth));
+          setCursor((c) => computeVisualUpCursor(value, c, lineWidth, visualRows));
         } else {
           if (line === 0) {
             if (onFirstLineUp) onFirstLineUp();
@@ -130,7 +139,7 @@ export const useKeyboardInput = ({
         resetBlink();
 
         if (lineWidth > 0) {
-          const newPos = computeVisualDownCursor(value, cursor, lineWidth);
+          const newPos = computeVisualDownCursor(value, cursor, lineWidth, visualRows);
           if (newPos !== null) {
             setCursor(newPos);
           } else {
@@ -175,36 +184,40 @@ export const useKeyboardInput = ({
       if (key.leftArrow) {
         if (!enableArrowNavigation) return;
         resetBlink();
-        setCursor((c) => Math.max(0, c - 1));
+        setCursor((c) => prevGraphemeOffset(value, c));
         return;
       }
 
       if (key.rightArrow) {
         if (!enableArrowNavigation) return;
         resetBlink();
-        setCursor((c) => Math.min(value.length, c + 1));
+        setCursor((c) => nextGraphemeOffset(value, c));
         return;
       }
 
       if (key.meta && input === "b") {
+        if (!enableArrowNavigation) return;
         resetBlink();
         setCursor((c) => findPrevWordBoundary(value, c));
         return;
       }
 
       if (key.meta && input === "f") {
+        if (!enableArrowNavigation) return;
         resetBlink();
         setCursor((c) => findNextWordBoundary(value, c));
         return;
       }
 
       if (key.ctrl && input === "a") {
+        if (!enableArrowNavigation) return;
         resetBlink();
         setCursor((c) => findLineStart(value, c));
         return;
       }
 
       if (key.ctrl && input === "e") {
+        if (!enableArrowNavigation) return;
         resetBlink();
         setCursor((c) => findLineEnd(value, c));
         return;
@@ -217,6 +230,7 @@ export const useKeyboardInput = ({
         const newValue = value.slice(0, boundary) + value.slice(cursor);
         setValue(newValue);
         setCursor(boundary, newValue);
+        resetMutationTracking();
         return;
       }
 
@@ -227,6 +241,7 @@ export const useKeyboardInput = ({
         const newValue = value.slice(0, lineStart) + value.slice(cursor);
         setValue(newValue);
         setCursor(lineStart, newValue);
+        resetMutationTracking();
         return;
       }
 
@@ -238,6 +253,7 @@ export const useKeyboardInput = ({
         const newValue = value.slice(0, cursor) + value.slice(killEnd);
         setValue(newValue);
         setCursor(cursor, newValue);
+        resetMutationTracking();
         return;
       }
 
@@ -249,14 +265,16 @@ export const useKeyboardInput = ({
           const newValue = value.slice(0, boundary) + value.slice(cursor);
           setValue(newValue);
           setCursor(boundary, newValue);
+          resetMutationTracking();
           return;
         }
         if (cursor > 0) {
           resetBlink();
           pushUndo("delete", value, cursor);
-          const newValue = value.slice(0, cursor - 1) + value.slice(cursor);
+          const target = prevGraphemeOffset(value, cursor);
+          const newValue = value.slice(0, target) + value.slice(cursor);
           setValue(newValue);
-          setCursor(cursor - 1, newValue);
+          setCursor(target, newValue);
         }
         return;
       }
@@ -272,7 +290,12 @@ export const useKeyboardInput = ({
         return;
       }
 
-      if (key.ctrl || key.escape || key.tab) {
+      if (key.tab) {
+        if (onTab) onTab(!!key.shift);
+        return;
+      }
+
+      if (key.ctrl || key.escape) {
         return;
       }
 

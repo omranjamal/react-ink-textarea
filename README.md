@@ -101,10 +101,19 @@ import { LineNumber } from "ink-textarea";
 | `autoNewLineLimit`      | `number`                                                                                    | Maximum number of empty lines allowed after the last line with content. Only applies to Down arrow navigation. Defaults to `3`.           |
 | `enableArrowNavigation` | `boolean`                                                                                   | When `false`, disables cursor movement via arrow keys. Useful for implementing suggestion pickers. Defaults to `true`.                    |
 | `initialLineCount`      | `number`                                                                                    | Number of lines to display initially. The textarea will maintain at least this many lines. Defaults to `2`.                               |
+| `viewportLines`         | `number`                                                                                    | Maximum number of visual rows rendered at once. When set, the textarea virtualizes rendering and auto-scrolls to keep the cursor visible. Defaults to no cap (renders every row). |
+| `tabWidth`              | `number`                                                                                    | Visual width of `\t` characters in cells. Tabs render as `tabWidth` spaces (or `→` + spaces with `showInvisibles.tab`). The stored value keeps `\t`. Defaults to `4`. |
 | `value`                 | `string`                                                                                    | **Controlled mode**: The current value of the textarea. When provided, component operates in controlled mode.                             |
-| `cursorPosition`        | `number`                                                                                    | **Controlled mode**: The current cursor position. Use with `value` for full control.                                                      |
+| `cursorPosition`        | `[line: number, column: number]`                                                            | **Controlled mode**: The current cursor position as a `[line, column]` tuple. Use with `value` for full control.                          |
 | `onChange`              | `(value: string) => void`                                                                   | **Controlled mode**: Called when the value changes.                                                                                       |
-| `onCursorChange`        | `(position: number) => void`                                                                | **Controlled mode**: Called when the cursor position changes.                                                                             |
+| `onCursorChange`        | `(position: [line, column], type: string, chunkIndex: number) => void`                      | **Controlled mode**: Called when the cursor moves. `type` is the label at the cursor (`"text"` if no label matches); `chunkIndex` is the zero-based index of the labeled segment the cursor is in. |
+| `onFirstLineUp`         | `() => void`                                                                                | Called when Up arrow is pressed on the first visual row. Useful for moving focus out of the textarea.                                     |
+| `onLastLineDown`        | `() => void`                                                                                | Called when Down arrow is pressed on the last line and trailing-empty-line limit is reached. Useful for moving focus out.                 |
+| `onTab`                 | `(shift: boolean) => void`                                                                  | Called when Tab is pressed. `shift` is `true` for Shift+Tab. Without this prop, Tab is silently swallowed (no value mutation).            |
+| `onDimensions`          | `(width: number) => void`                                                                   | Called with the measured content width whenever it changes.                                                                               |
+| `showInvisibles`        | `boolean \| { space?: boolean; tab?: boolean; newline?: boolean }`                          | Render whitespace glyphs (`·` for space, `→` for tab, `↵` for newline). Defaults to `false`.                                              |
+| `styles`                | `{ text?, invisibleCharacter?, [labelName]? }` of `TStyleProps`                             | Style overrides for the default text run, invisible glyphs, and any user-defined labels.                                                  |
+| `labels`                | `Record<string, RegExp>`                                                                    | Named regex labels. Each match is rendered with the matching label's styles (when configured) and surfaced via `onCursorChange.type`.     |
 
 ### Controlled Mode
 
@@ -112,14 +121,14 @@ Use controlled mode when you need to manage the textarea state externally:
 
 ```tsx
 const [value, setValue] = useState("");
-const [cursor, setCursor] = useState(0);
+const [cursor, setCursor] = useState<[number, number]>([0, 0]);
 
 <TextArea
   isActive={true}
   value={value}
   cursorPosition={cursor}
   onChange={setValue}
-  onCursorChange={setCursor}
+  onCursorChange={(pos) => setCursor(pos)}
   onSubmit={(val) => console.log(val)}
 />;
 ```

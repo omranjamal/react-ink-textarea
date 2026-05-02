@@ -51,7 +51,6 @@ export type TextAreaProps = {
   readonly highlightActiveLine?: boolean;
   readonly activeLineColor?: string;
   readonly enableArrowNavigation?: boolean;
-  readonly wrapText?: boolean;
   // Controlled mode props
   readonly value?: string;
   readonly cursorPosition?: [line: number, col: number];
@@ -64,8 +63,15 @@ export type TextAreaProps = {
   // Boundary navigation handlers
   readonly onFirstLineUp?: () => void;
   readonly onLastLineDown?: () => void;
+  readonly onTab?: (shift: boolean) => void;
   // Initial line count
   readonly initialLineCount?: number;
+  // Maximum number of visual rows to render at once. When set, the textarea
+  // virtualizes rendering by slicing visualRows around the cursor and
+  // auto-scrolling to keep the cursor visible. Defaults to no cap (renders
+  // every row).
+  readonly viewportLines?: number;
+  readonly tabWidth?: number;
   readonly onDimensions?: (width: number) => void;
   readonly showInvisibles?: TShowInvisibles;
   readonly styles?: TStyles;

@@ -171,4 +171,58 @@ describe("TextArea > Keybindings", () => {
       onCursorChange.mock.calls[onCursorChange.mock.calls.length - 1]?.[0];
     expect(lastCall).toEqual([0, 6]);
   });
+
+  it("Tab without onTab does not modify value", async () => {
+    const onChange = vi.fn();
+    const { stdin } = render(
+      <TextArea
+        isActive={true}
+        onSubmit={() => {}}
+        onChange={onChange}
+      />,
+    );
+
+    stdin.write("ab");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    onChange.mockClear();
+
+    stdin.write("\t");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("Tab fires onTab callback with shift=false", async () => {
+    const onTab = vi.fn();
+    const { stdin } = render(
+      <TextArea
+        isActive={true}
+        onSubmit={() => {}}
+        onTab={onTab}
+      />,
+    );
+
+    stdin.write("\t");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(onTab).toHaveBeenCalledTimes(1);
+    expect(onTab).toHaveBeenCalledWith(false);
+  });
+
+  it("Shift+Tab fires onTab callback with shift=true", async () => {
+    const onTab = vi.fn();
+    const { stdin } = render(
+      <TextArea
+        isActive={true}
+        onSubmit={() => {}}
+        onTab={onTab}
+      />,
+    );
+
+    stdin.write("\x1b[Z");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(onTab).toHaveBeenCalledTimes(1);
+    expect(onTab).toHaveBeenCalledWith(true);
+  });
 });

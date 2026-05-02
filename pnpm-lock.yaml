@@ -8,12 +8,18 @@ importers:
 
   .:
     dependencies:
+      ansi-styles:
+        specifier: ^6.2.3
+        version: 6.2.3
       ink:
         specifier: ^7.0.1
         version: 7.0.1(@types/react@19.2.14)(react@19.2.5)
       react:
         specifier: ^19.2.5
         version: 19.2.5
+      string-width:
+        specifier: ^8.2.1
+        version: 8.2.1
     devDependencies:
       '@types/node':
         specifier: ^25.6.0

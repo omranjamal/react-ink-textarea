@@ -19,17 +19,26 @@ export const useCursorBlink = ({
   const [cursorVisible, setCursorVisible] = useState(true);
   const blinkIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isActiveRef = useRef(isActive);
+
+  useEffect(() => {
+    isActiveRef.current = isActive;
+  }, [isActive]);
+
+  const clearAll = (): void => {
+    if (blinkIntervalRef.current) {
+      clearInterval(blinkIntervalRef.current);
+      blinkIntervalRef.current = null;
+    }
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+  };
 
   useEffect(() => {
     if (!isActive) {
-      if (blinkIntervalRef.current) {
-        clearInterval(blinkIntervalRef.current);
-        blinkIntervalRef.current = null;
-      }
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-        typingTimeoutRef.current = null;
-      }
+      clearAll();
       return;
     }
 
@@ -37,31 +46,16 @@ export const useCursorBlink = ({
       setCursorVisible((prev) => !prev);
     }, cursorInterval);
 
-    return () => {
-      if (blinkIntervalRef.current) {
-        clearInterval(blinkIntervalRef.current);
-        blinkIntervalRef.current = null;
-      }
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-        typingTimeoutRef.current = null;
-      }
-    };
-  }, [isActive]);
+    return clearAll;
+  }, [isActive, cursorInterval]);
 
   const resetBlink = (): void => {
     setCursorVisible(true);
-
-    if (blinkIntervalRef.current) {
-      clearInterval(blinkIntervalRef.current);
-      blinkIntervalRef.current = null;
-    }
-
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
+    clearAll();
 
     typingTimeoutRef.current = setTimeout(() => {
+      typingTimeoutRef.current = null;
+      if (!isActiveRef.current) return;
       blinkIntervalRef.current = setInterval(() => {
         setCursorVisible((prev) => !prev);
       }, cursorInterval);

@@ -9,21 +9,22 @@ import {
   DEFAULT_UNDO_GROUP_DELAY,
   DEFAULT_AUTO_NEW_LINE_LIMIT,
   DEFAULT_INITIAL_LINE_COUNT,
+  DEFAULT_TAB_WIDTH,
 } from "./constants.js";
 import {
   getCursorLineAndColumn,
-  chunkString,
-  chunkLineForCursor,
-  renderChunkWithCursor,
   computeLabels,
   computeSegments,
   getLabelAt,
   findSegmentIndex,
+  buildVisualRows,
+  visualRowForCursor,
 } from "./textUtils.js";
 import { useCursorState } from "./hooks/useCursorState.js";
 import { useUndo } from "./hooks/useUndo.js";
 import { useCursorBlink } from "./hooks/useCursorBlink.js";
 import { useKeyboardInput } from "./hooks/useKeyboardInput.js";
+import { useViewport } from "./hooks/useViewport.js";
 import type {
   TextAreaProps,
   TLinePrefixProps,
@@ -91,9 +92,20 @@ type RenderChunkBodyArgs = {
   invisibleProps: ReturnType<typeof styleToTextProps>;
   labelByChar: string[];
   labelTextProps: Record<string, ReturnType<typeof styleToTextProps>>;
+  tabWidth: number;
 };
 
-const renderChunkBody = ({
+const graphemeSegmenter = new Intl.Segmenter("en", { granularity: "grapheme" });
+
+const isAsciiOnly = (s: string): boolean => {
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    if (c >= 0x80 || c < 0x20) return false;
+  }
+  return true;
+};
+
+const renderRowBody = ({
   chunk,
   chunkAbsStart,
   cursorPos,
@@ -104,80 +116,90 @@ const renderChunkBody = ({
   invisibleProps,
   labelByChar,
   labelTextProps,
+  tabWidth,
 }: RenderChunkBodyArgs): ReactNode[] => {
   const nodes: ReactNode[] = [];
   let buf = "";
-  let bufLabel: string | null = null;
+  let bufKey: string | null = null;
   let segIdx = 0;
-  const flush = () => {
-    if (buf.length > 0) {
-      const lp = bufLabel !== null ? labelTextProps[bufLabel] : undefined;
-      nodes.push(
-        <Text key={`s${segIdx++}`} {...lp}>
-          {buf}
-        </Text>,
-      );
-      buf = "";
-      bufLabel = null;
-    }
+
+  const propsForKey = (
+    key: string,
+  ): ReturnType<typeof styleToTextProps> | undefined => {
+    const sep = key.indexOf("|");
+    const label = key.slice(0, sep);
+    const mode = key.slice(sep + 1);
+    if (mode === "I") return invisibleProps;
+    return label && label !== "text" ? labelTextProps[label] : undefined;
   };
 
-  for (let i = 0; i < chunk.length; i++) {
-    const ch = chunk[i]!;
-    const charLabel = labelByChar[chunkAbsStart + i] ?? "text";
-    const glyph =
-      showAnyInvisible &&
-      ((ch === " " && inv.space) || (ch === "\t" && inv.tab))
-        ? ch === " "
-          ? "·"
-          : "→"
-        : null;
-    const isCursor = i === cursorPos;
+  const flush = (): void => {
+    if (buf.length === 0) return;
+    const props = propsForKey(bufKey!);
+    nodes.push(
+      <Text key={`s${segIdx++}`} {...props}>
+        {buf}
+      </Text>,
+    );
+    buf = "";
+    bufKey = null;
+  };
 
-    if (isCursor) {
-      flush();
-      const display = glyph ?? ch;
-      const cursorStr = cursorVisible
-        ? `\x1b[7m${display}\x1b[27m`
-        : display === " " && isCursorAtLineEnd
-          ? " "
-          : display;
-      if (glyph !== null) {
-        nodes.push(
-          <Text key={`c${i}`} {...invisibleProps}>
-            {cursorStr}
-          </Text>,
-        );
-      } else {
-        const lp = labelTextProps[charLabel];
-        nodes.push(
-          <Text key={`c${i}`} {...lp}>
-            {cursorStr}
-          </Text>,
-        );
-      }
-    } else if (glyph !== null) {
-      flush();
-      nodes.push(
-        <Text key={`d${i}`} {...invisibleProps}>
-          {glyph}
-        </Text>,
-      );
-    } else {
-      if (bufLabel !== null && bufLabel !== charLabel) {
-        flush();
-      }
-      buf += ch;
-      bufLabel = charLabel;
+  type Step = { unit: string; codeUnitOffset: number };
+  const steps: Step[] = [];
+  if (isAsciiOnly(chunk)) {
+    for (let i = 0; i < chunk.length; i++) {
+      steps.push({ unit: chunk[i]!, codeUnitOffset: i });
+    }
+  } else {
+    for (const seg of graphemeSegmenter.segment(chunk)) {
+      steps.push({ unit: seg.segment, codeUnitOffset: seg.index });
     }
   }
-  flush();
 
-  if (cursorPos === chunk.length) {
-    const cursorStr = cursorVisible ? `\x1b[7m \x1b[27m` : " ";
-    nodes.push(<Text key="cend">{cursorStr}</Text>);
+  for (const step of steps) {
+    const g = step.unit;
+    const i = step.codeUnitOffset;
+    let isInv: boolean;
+    let display: string;
+    if (g === "\t") {
+      if (showAnyInvisible && inv.tab) {
+        display = "→" + " ".repeat(Math.max(0, tabWidth - 1));
+        isInv = true;
+      } else {
+        display = " ".repeat(Math.max(1, tabWidth));
+        isInv = false;
+      }
+    } else {
+      isInv = showAnyInvisible && g === " " && inv.space;
+      display = isInv ? "·" : g;
+    }
+    const charLabel = isInv ? "" : (labelByChar[chunkAbsStart + i] ?? "text");
+    const isCur = i === cursorPos;
+    const cellStr = isCur
+      ? cursorVisible
+        ? g === "\t"
+          ? `\x1b[7m${display.charAt(0)}\x1b[27m${display.slice(1)}`
+          : `\x1b[7m${display}\x1b[27m`
+        : display === " " && isCursorAtLineEnd
+          ? " "
+          : display
+      : display;
+    const key = `${charLabel}|${isInv ? "I" : "T"}`;
+    if (key !== bufKey) flush();
+    bufKey = key;
+    buf += cellStr;
   }
 
+  if (cursorPos === chunk.length) {
+    const cursorStr = cursorVisible ? "\x1b[7m \x1b[27m" : " ";
+    const key = "text|T";
+    if (key !== bufKey) flush();
+    bufKey = key;
+    buf += cursorStr;
+  }
+
+  flush();
   return nodes;
 };
 
@@ -200,7 +222,10 @@ export const TextArea = ({
   onCursorChange,
   onFirstLineUp,
   onLastLineDown,
+  onTab,
   initialLineCount = DEFAULT_INITIAL_LINE_COUNT,
+  viewportLines,
+  tabWidth = DEFAULT_TAB_WIDTH,
   onDimensions,
   showInvisibles = false,
   styles,
@@ -248,7 +273,22 @@ export const TextArea = ({
     },
   });
 
-  const lines = value.split("\n");
+  const lines = useMemo(() => value.split("\n"), [value]);
+
+  const placeholderLines = useMemo(
+    () => (placeholder ? placeholder.split("\n") : []),
+    [placeholder],
+  );
+
+  const placeholderLineStartOffsets = useMemo(() => {
+    const offsets: number[] = new Array(placeholderLines.length);
+    let offset = 0;
+    for (let i = 0; i < placeholderLines.length; i++) {
+      offsets[i] = offset;
+      offset += placeholderLines[i]!.length + 1;
+    }
+    return offsets;
+  }, [placeholderLines]);
 
   const contentRef = useRef<DOMElement | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -278,6 +318,24 @@ export const TextArea = ({
     typingPause,
   });
 
+  const { line: cursorLine, column: cursorColumn } = getCursorLineAndColumn(
+    value,
+    cursor,
+  );
+
+  const visualRows = useMemo(
+    () =>
+      buildVisualRows(
+        lines,
+        lineWidth,
+        isActive ? cursorLine : -1,
+        isActive ? cursorColumn : 0,
+        initialLineCount,
+        tabWidth,
+      ),
+    [lines, lineWidth, isActive, cursorLine, cursorColumn, initialLineCount, tabWidth],
+  );
+
   useKeyboardInput({
     isActive,
     value,
@@ -287,6 +345,7 @@ export const TextArea = ({
     onSubmit,
     onFirstLineUp,
     onLastLineDown,
+    onTab,
     setValue,
     setCursor,
     pushUndo,
@@ -294,14 +353,11 @@ export const TextArea = ({
     resetMutationTracking,
     resetBlink,
     lineWidth,
+    visualRows,
   });
 
   const totalLines = Math.max(lines.length, initialLineCount);
   const hasContent = value.length > 0;
-  const { line: cursorLine, column: cursorColumn } = getCursorLineAndColumn(
-    value,
-    cursor,
-  );
 
   const labelByChar = useMemo(
     () => computeLabels(value, labels ?? {}),
@@ -360,16 +416,6 @@ export const TextArea = ({
     return nodes;
   };
 
-  const placeholderLineStartOffsets: number[] = [];
-  {
-    let off = 0;
-    const phLines = placeholder ? placeholder.split("\n") : [];
-    for (let i = 0; i < phLines.length; i++) {
-      placeholderLineStartOffsets.push(off);
-      off += phLines[i]!.length + 1;
-    }
-  }
-
   const lastDispatchRef = useRef<{
     line: number;
     col: number;
@@ -407,11 +453,10 @@ export const TextArea = ({
 
   useEffect(() => {
     if (prevCursorRef.current !== cursor) {
-      dispatchCursor(cursor);
+      dispatchCursorRef.current?.(cursor);
     }
     prevCursorRef.current = cursor;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cursor, cursorLine, cursorColumn, labelByChar, segments]);
+  }, [cursor]);
 
   const renderLine = (
     content: ReactNode,
@@ -462,13 +507,23 @@ export const TextArea = ({
     );
   };
 
-  const placeholderLines = placeholder ? placeholder.split("\n") : [];
+  const cursorRowIndex = isActive
+    ? visualRowForCursor(visualRows, cursorLine, cursorColumn, lineWidth)
+    : -1;
+
+  const { visibleRowStart, visibleRowEnd } = useViewport({
+    rowCount: Math.max(visualRows.length, initialLineCount),
+    viewportLines: viewportLines ?? Number.POSITIVE_INFINITY,
+    cursorRowIndex,
+  });
 
   if (value.length === 0 && !isActive && placeholderLines.length > 0) {
+    const visibleCount = Math.max(0, visibleRowEnd - visibleRowStart);
     return (
       <Box flexDirection="column">
-        {Array.from({ length: initialLineCount }, (_, i) =>
-          renderLine(
+        {Array.from({ length: visibleCount }, (_, k) => {
+          const i = visibleRowStart + k;
+          return renderLine(
             <Text>
               {renderPlaceholderLine(
                 placeholderLines[i] ?? " ",
@@ -480,21 +535,23 @@ export const TextArea = ({
             i,
             initialLineCount,
             i > 0,
-            i === 0 ? contentRef : undefined,
+            k === 0 ? contentRef : undefined,
             false,
             0,
             false,
-          ),
-        )}
+          );
+        })}
       </Box>
     );
   }
 
   if (value.length === 0 && isActive) {
+    const visibleCount = Math.max(0, visibleRowEnd - visibleRowStart);
     return (
       <Box flexDirection="column">
-        {Array.from({ length: initialLineCount }, (_, i) =>
-          renderLine(
+        {Array.from({ length: visibleCount }, (_, k) => {
+          const i = visibleRowStart + k;
+          return renderLine(
             <Text {...textProps}>
               {i === cursorLine && cursorVisible ? "\x1b[7m \x1b[27m" : " "}
               {placeholderLines[i]
@@ -509,159 +566,112 @@ export const TextArea = ({
             i,
             initialLineCount,
             i > 0,
-            i === 0 ? contentRef : undefined,
+            k === 0 ? contentRef : undefined,
             false,
             0,
             isActive && i === cursorLine,
-          ),
-        )}
+          );
+        })}
       </Box>
     );
   }
 
-  const linesToRender = !hasContent
-    ? Math.max(lines.length, initialLineCount)
-    : lines.length;
-
   const renderedLines: ReactNode[] = [];
 
-  const lineStartOffsets: number[] = [];
-  {
-    let offset = 0;
-    for (let i = 0; i < lines.length; i++) {
-      lineStartOffsets.push(offset);
-      offset += lines[i]!.length + 1; // +1 for the \n
-    }
-  }
-
-  const hasAnyLabelStyle = Object.keys(labelTextProps).length > 0;
-
-  for (let lineIdx = 0; lineIdx < linesToRender; lineIdx++) {
-    const lineText = lines[lineIdx] ?? "";
-    const isVirtualLine = lineIdx >= lines.length;
-    const isCursorLine = isActive && lineIdx === cursorLine;
-    const lineAbsStart = lineStartOffsets[lineIdx] ?? value.length;
-
-    let chunks: string[];
-    if (lineWidth > 0) {
-      chunks = isCursorLine
-        ? chunkLineForCursor(lineText, cursorColumn, lineWidth)
-        : lineText.length > 0
-          ? chunkString(lineText, lineWidth)
-          : [""];
-    } else {
-      chunks = [lineText];
-    }
-
+  for (let i = visibleRowStart; i < visibleRowEnd; i++) {
+    const row = visualRows[i]!;
+    const lineIdx = row.lineIdx;
+    const c = row.chunkIdx;
+    const isVirtualLine = row.isVirtualLine;
+    const lineText = isVirtualLine ? "" : (lines[lineIdx] ?? "");
+    const isCursorLine = isActive && !isVirtualLine && lineIdx === cursorLine;
+    const isContinuation = c > 0;
     const cursorVisualRow =
       isCursorLine && lineWidth > 0 ? Math.floor(cursorColumn / lineWidth) : 0;
+    const isActiveRow = isCursorLine && c === cursorVisualRow;
+    const hasTrailingNewline = !isVirtualLine && lineIdx < lines.length - 1;
+    const showNewlineGlyph =
+      inv.newline && row.isLastChunkOfLine && hasTrailingNewline;
+    const cursorPos = isActiveRow
+      ? lineWidth > 0
+        ? cursorColumn % lineWidth
+        : cursorColumn
+      : -1;
+    const isCursorAtLineEnd = cursorColumn >= lineText.length;
+    const chunkAbsStart = row.absStart;
 
-    for (let c = 0; c < chunks.length; c++) {
-      const chunk = chunks[c]!;
-      const isContinuation = c > 0;
-      const isActiveRow = isCursorLine && c === cursorVisualRow;
-      const isLastChunk = c === chunks.length - 1;
-      const hasTrailingNewline = lineIdx < lines.length - 1;
-      const showNewlineGlyph =
-        inv.newline && isLastChunk && hasTrailingNewline;
+    const showPlaceholder =
+      !isContinuation && !!placeholderLines[lineIdx] && !hasContent;
 
-      const cursorPos = isActiveRow
-        ? lineWidth > 0
-          ? cursorColumn % lineWidth
-          : cursorColumn
-        : -1;
-      const isCursorAtLineEnd = cursorColumn >= lineText.length;
-      const chunkAbsStart = lineAbsStart + (lineWidth > 0 ? c * lineWidth : 0);
-
-      const showPlaceholder =
-        !isContinuation && placeholderLines[lineIdx] && !hasContent;
-
-      const useFullBody = showAnyInvisible || hasAnyLabelStyle;
-
-      const bodyNodes: ReactNode[] = useFullBody
-        ? renderChunkBody({
-            chunk,
-            chunkAbsStart,
-            cursorPos,
-            cursorVisible,
-            isCursorAtLineEnd,
-            inv,
-            showAnyInvisible,
-            invisibleProps,
-            labelByChar,
-            labelTextProps,
-          })
-        : isActiveRow
-          ? [
-              <Text key="b">
-                {renderChunkWithCursor(
-                  chunk,
-                  cursorPos,
-                  cursorVisible,
-                  isCursorAtLineEnd,
-                )}
-              </Text>,
-            ]
-          : [<Text key="b">{chunk || " "}</Text>];
-
-      if (
-        bodyNodes.length === 0 &&
-        !showNewlineGlyph &&
-        !showPlaceholder
-      ) {
-        bodyNodes.push(<Text key="b"> </Text>);
-      }
-
+    if (isVirtualLine) {
       renderedLines.push(
         renderLine(
-          <Text {...textProps}>
-            {bodyNodes}
-            {showNewlineGlyph ? (
-              <Text key="nl" {...invisibleProps}>
-                ↵
-              </Text>
-            ) : null}
+          <Text>
             {showPlaceholder
               ? renderPlaceholderLine(
                   placeholderLines[lineIdx]!,
                   placeholderLineStartOffsets[lineIdx] ?? 0,
-                  `ph-${lineIdx}`,
+                  `ph-pad-${lineIdx}`,
                 )
-              : null}
+              : " "}
           </Text>,
-          `${lineIdx}-${c}`,
+          `pad-${lineIdx}`,
           lineIdx,
           totalLines,
-          isVirtualLine,
-          lineIdx === 0 && c === 0 ? contentRef : undefined,
-          isContinuation,
-          c,
-          isActiveRow,
+          true,
+          undefined,
+          false,
+          0,
+          false,
         ),
       );
+      continue;
     }
-  }
 
-  for (let padIdx = linesToRender; padIdx < initialLineCount; padIdx++) {
+    const chunk = row.text;
+    const bodyNodes: ReactNode[] = renderRowBody({
+      chunk,
+      chunkAbsStart,
+      cursorPos,
+      cursorVisible,
+      isCursorAtLineEnd,
+      inv,
+      showAnyInvisible,
+      invisibleProps,
+      labelByChar,
+      labelTextProps,
+      tabWidth,
+    });
+
+    if (bodyNodes.length === 0 && !showNewlineGlyph && !showPlaceholder) {
+      bodyNodes.push(<Text key="b"> </Text>);
+    }
+
     renderedLines.push(
       renderLine(
-        <Text>
-          {placeholderLines[padIdx] && !hasContent
+        <Text {...textProps}>
+          {bodyNodes}
+          {showNewlineGlyph ? (
+            <Text key="nl" {...invisibleProps}>
+              ↵
+            </Text>
+          ) : null}
+          {showPlaceholder
             ? renderPlaceholderLine(
-                placeholderLines[padIdx]!,
-                placeholderLineStartOffsets[padIdx] ?? 0,
-                `ph-pad-${padIdx}`,
+                placeholderLines[lineIdx]!,
+                placeholderLineStartOffsets[lineIdx] ?? 0,
+                `ph-${lineIdx}`,
               )
-            : " "}
+            : null}
         </Text>,
-        `pad-${padIdx}`,
-        padIdx,
+        `${lineIdx}-${c}`,
+        lineIdx,
         totalLines,
-        true,
-        undefined,
         false,
-        0,
-        false,
+        i === visibleRowStart ? contentRef : undefined,
+        isContinuation,
+        c,
+        isActiveRow,
       ),
     );
   }

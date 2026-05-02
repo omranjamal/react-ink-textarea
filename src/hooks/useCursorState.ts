@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { getCursorFromLineColumn } from "../textUtils.js";
 
+const normalizeNewlines = (s: string): string =>
+  s.indexOf("\r") === -1 ? s : s.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
 type UseCursorStateOptions = {
   controlledValue: string | undefined;
   controlledPosition: [number, number] | undefined;
@@ -10,14 +13,16 @@ type UseCursorStateOptions = {
     | undefined;
 };
 
+export type SetCursor = {
+  (updater: (prev: number) => number): void;
+  (value: number, valueForCalculation?: string): void;
+};
+
 type UseCursorStateReturn = {
   value: string;
   cursor: number;
   setValue: (updater: string | ((prev: string) => string)) => void;
-  setCursor: (
-    updater: number | ((prev: number) => number),
-    valueForCalculation?: string,
-  ) => void;
+  setCursor: SetCursor;
 };
 
 export const useCursorState = ({
@@ -30,8 +35,9 @@ export const useCursorState = ({
   const [internalValue, setInternalValue] = useState("");
   const [internalCursor, setInternalCursor] = useState(0);
 
-  const valueRef = useRef(isControlled ? controlledValue : internalValue);
-  const value = isControlled ? controlledValue : internalValue;
+  const rawValue = isControlled ? controlledValue : internalValue;
+  const value = normalizeNewlines(rawValue);
+  const valueRef = useRef(value);
 
   useEffect(() => {
     valueRef.current = value;
@@ -42,7 +48,8 @@ export const useCursorState = ({
     wasClamped: boolean;
   } => {
     if (controlledPosition === undefined) {
-      return { cursor: internalCursor, wasClamped: false };
+      const clamped = Math.max(0, Math.min(internalCursor, value.length));
+      return { cursor: clamped, wasClamped: clamped !== internalCursor };
     }
     const [line, col] = controlledPosition;
     const { cursor, clampedLine, clampedCol } = getCursorFromLineColumn(
@@ -58,19 +65,15 @@ export const useCursorState = ({
 
   const { cursor, wasClamped } = processExternalPosition();
 
-  useEffect(() => {
-    if (wasClamped && onCursorAttempt) {
-      onCursorAttempt(cursor);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wasClamped, cursor]);
+  const lastClampDispatchRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!isControlled && onChange) {
-      onChange(internalValue);
-    }
+    if (!wasClamped) return;
+    if (lastClampDispatchRef.current === cursor) return;
+    lastClampDispatchRef.current = cursor;
+    onCursorAttempt?.(cursor);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [wasClamped, cursor]);
 
   const setValue = (updater: string | ((prev: string) => string)): void => {
     const newValue = typeof updater === "function" ? updater(value) : updater;

@@ -270,6 +270,70 @@ describe("TextArea > Controlled Mode", () => {
     );
   });
 
+  it("normalizes CRLF in controlled value", async () => {
+    const { lastFrame } = render(
+      <TextArea
+        isActive={true}
+        onSubmit={() => {}}
+        value={"a\r\nb\r\nc"}
+        cursorPosition={[2, 0]}
+        onChange={() => {}}
+      />,
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    const frame = lastFrame() ?? "";
+    expect(frame).toContain("a");
+    expect(frame).toContain("b");
+    expect(frame).toContain("c");
+    expect(frame).not.toContain("\r");
+  });
+
+  it("normalizes lone CR (old-Mac line endings) in controlled value", async () => {
+    const { lastFrame } = render(
+      <TextArea
+        isActive={true}
+        onSubmit={() => {}}
+        value={"a\rb"}
+        cursorPosition={[1, 0]}
+        onChange={() => {}}
+      />,
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    const frame = lastFrame() ?? "";
+    expect(frame).toContain("a");
+    expect(frame).toContain("b");
+    expect(frame).not.toContain("\r");
+  });
+
+  it("CRLF cursor reaches normalized line via right arrow", async () => {
+    const onCursorChange = vi.fn();
+    const { stdin } = render(
+      <TextArea
+        isActive={true}
+        onSubmit={() => {}}
+        value={"a\r\nb"}
+        cursorPosition={[0, 1]}
+        onChange={() => {}}
+        onCursorChange={onCursorChange}
+      />,
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    stdin.write("\x1b[C"); // Right arrow → newline
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(onCursorChange).toHaveBeenCalledWith(
+      [1, 0],
+      expect.any(String),
+      expect.any(Number),
+    );
+  });
+
   it("correctly positions cursor on specific line in multi-line text", async () => {
     const onCursorChange = vi.fn();
     const { stdin } = render(
