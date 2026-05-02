@@ -51,6 +51,10 @@
     "string-width": "^8.2.1"
   },
   "files": [
-    "dist/"
+    "dist/",
+    "src/",
+    "tsconfig.json",
+    "README.md",
+    "LICENSE"
   ]
 }
