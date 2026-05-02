@@ -8,6 +8,8 @@ export type {
   TLabels,
   TLabelRule,
   TLabelFn,
+  TKeybinding,
+  TKeybindings,
 } from "./types.js";
 export { LineNumber } from "./LineNumber.js";
 export type { LineNumberProps } from "./LineNumber.js";

@@ -13,12 +13,13 @@ import {
   visualRowForCursor,
 } from "../textUtils.js";
 import type { VisualRow } from "../textUtils.js";
+import type { TKeybinding } from "../types.js";
 
 type UseKeyboardInputOptions = {
   isActive: boolean;
   value: string;
   cursor: number;
-  enableArrowNavigation: boolean;
+  keybindings: Readonly<Record<TKeybinding, boolean>>;
   autoNewLineLimit: number;
   onSubmit: (value: string) => void;
   onFirstLineUp: (() => void) | undefined;
@@ -43,7 +44,7 @@ export const useKeyboardInput = ({
   isActive,
   value,
   cursor,
-  enableArrowNavigation,
+  keybindings,
   autoNewLineLimit,
   onSubmit,
   onFirstLineUp,
@@ -77,6 +78,7 @@ export const useKeyboardInput = ({
 
   useInput(
     (input, key) => {
+      const isCtrlJ = key.ctrl && input === "j";
       const isCtrlEnter =
         (key.return && key.ctrl) ||
         input === "\x1b[27;5;13~" ||
@@ -89,12 +91,19 @@ export const useKeyboardInput = ({
         (key.return && key.meta) ||
         input === "\x1b[27;3;13~" ||
         input.endsWith("[27;3;13~");
-      if (
-        (key.ctrl && input === "j") ||
-        isCtrlEnter ||
-        isShiftEnter ||
-        isAltEnter
-      ) {
+
+      const newlineChord: TKeybinding | null = isCtrlJ
+        ? "Ctrl+J"
+        : isCtrlEnter
+          ? "Ctrl+Enter"
+          : isShiftEnter
+            ? "Shift+Enter"
+            : isAltEnter
+              ? "Alt+Enter"
+              : null;
+
+      if (newlineChord) {
+        if (!keybindings[newlineChord]) return;
         resetBlink();
         pushUndo("insert", value, cursor);
         const newValue = value.slice(0, cursor) + "\n" + value.slice(cursor);
@@ -104,12 +113,13 @@ export const useKeyboardInput = ({
       }
 
       if (key.return) {
+        if (!keybindings.Enter) return;
         onSubmit(value);
         return;
       }
 
       if (key.upArrow) {
-        if (!enableArrowNavigation) return;
+        if (!keybindings.Up) return;
         const { line, column } = getCursorLineAndColumn(value, cursor);
 
         if (lineWidth > 0) {
@@ -139,7 +149,7 @@ export const useKeyboardInput = ({
       }
 
       if (key.downArrow) {
-        if (!enableArrowNavigation) return;
+        if (!keybindings.Down) return;
         resetBlink();
 
         if (lineWidth > 0) {
@@ -186,7 +196,7 @@ export const useKeyboardInput = ({
       }
 
       if (key.leftArrow) {
-        if (!enableArrowNavigation) return;
+        if (!keybindings.Left) return;
         if (cursor === 0) {
           if (onFirstCharacterLeft) onFirstCharacterLeft();
           return;
@@ -197,7 +207,7 @@ export const useKeyboardInput = ({
       }
 
       if (key.rightArrow) {
-        if (!enableArrowNavigation) return;
+        if (!keybindings.Right) return;
         if (cursor === value.length) {
           if (onLastCharacterRight) onLastCharacterRight();
           return;
@@ -208,34 +218,35 @@ export const useKeyboardInput = ({
       }
 
       if (key.meta && input === "b") {
-        if (!enableArrowNavigation) return;
+        if (!keybindings["Alt+B"]) return;
         resetBlink();
         setCursor((c) => findPrevWordBoundary(value, c));
         return;
       }
 
       if (key.meta && input === "f") {
-        if (!enableArrowNavigation) return;
+        if (!keybindings["Alt+F"]) return;
         resetBlink();
         setCursor((c) => findNextWordBoundary(value, c));
         return;
       }
 
       if (key.ctrl && input === "a") {
-        if (!enableArrowNavigation) return;
+        if (!keybindings["Ctrl+A"]) return;
         resetBlink();
         setCursor((c) => findLineStart(value, c));
         return;
       }
 
       if (key.ctrl && input === "e") {
-        if (!enableArrowNavigation) return;
+        if (!keybindings["Ctrl+E"]) return;
         resetBlink();
         setCursor((c) => findLineEnd(value, c));
         return;
       }
 
       if (key.ctrl && input === "w") {
+        if (!keybindings["Ctrl+W"]) return;
         resetBlink();
         pushUndo("delete", value, cursor);
         const boundary = findPrevWordBoundary(value, cursor);
@@ -247,6 +258,7 @@ export const useKeyboardInput = ({
       }
 
       if (key.ctrl && input === "u") {
+        if (!keybindings["Ctrl+U"]) return;
         resetBlink();
         pushUndo("delete", value, cursor);
         const lineStart = findLineStart(value, cursor);
@@ -258,6 +270,7 @@ export const useKeyboardInput = ({
       }
 
       if (key.ctrl && input === "k") {
+        if (!keybindings["Ctrl+K"]) return;
         resetBlink();
         pushUndo("delete", value, cursor);
         const lineEnd = findLineEnd(value, cursor);
@@ -271,6 +284,7 @@ export const useKeyboardInput = ({
 
       if (key.backspace || key.delete) {
         if (key.meta) {
+          if (!keybindings["Alt+Backspace"]) return;
           resetBlink();
           pushUndo("delete", value, cursor);
           const boundary = findPrevWordBoundary(value, cursor);
@@ -280,6 +294,8 @@ export const useKeyboardInput = ({
           resetMutationTracking();
           return;
         }
+        const chord: TKeybinding = key.backspace ? "Backspace" : "Delete";
+        if (!keybindings[chord]) return;
         if (cursor > 0) {
           resetBlink();
           pushUndo("delete", value, cursor);
@@ -292,6 +308,7 @@ export const useKeyboardInput = ({
       }
 
       if (key.ctrl && input === "z") {
+        if (!keybindings["Ctrl+Z"]) return;
         resetBlink();
         const entry = popUndo();
         if (entry) {

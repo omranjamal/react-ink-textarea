@@ -316,3 +316,421 @@ describe("TextArea > Keybindings", () => {
     expect(onFirstCharacterLeft).not.toHaveBeenCalled();
   });
 });
+
+describe("TextArea > keybindings flag map", () => {
+  const wait = (ms = 60) => new Promise((r) => setTimeout(r, ms));
+
+  it("Enter: disabled keybindings.Enter blocks onSubmit", async () => {
+    const onSubmit = vi.fn();
+    const { stdin } = render(
+      <TextArea
+        isActive
+        onSubmit={onSubmit}
+        keybindings={{ Enter: false }}
+      />,
+    );
+    await wait();
+    stdin.write("\r");
+    await wait();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  // Ctrl+J chord is hard to verify in ink-testing-library: raw \x0a is
+  // delivered as plain input ("\n") and falls through to text insertion,
+  // not the chord branch. The chord-gating code path is structurally
+  // identical to Ctrl+Enter / Shift+Enter / Alt+Enter (verified below).
+
+  it("Ctrl+Enter: disabled blocks newline insertion", async () => {
+    const onChange = vi.fn();
+    const { stdin } = render(
+      <TextArea
+        isActive
+        onSubmit={() => {}}
+        onChange={onChange}
+        keybindings={{ "Ctrl+Enter": false }}
+      />,
+    );
+    await wait();
+    stdin.write("ab");
+    await wait();
+    onChange.mockClear();
+    stdin.write("\x1b[27;5;13~");
+    await wait();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("Shift+Enter: disabled blocks newline insertion", async () => {
+    const onChange = vi.fn();
+    const { stdin } = render(
+      <TextArea
+        isActive
+        onSubmit={() => {}}
+        onChange={onChange}
+        keybindings={{ "Shift+Enter": false }}
+      />,
+    );
+    await wait();
+    stdin.write("ab");
+    await wait();
+    onChange.mockClear();
+    stdin.write("\x1b[27;2;13~");
+    await wait();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("Alt+Enter: disabled blocks newline insertion", async () => {
+    const onChange = vi.fn();
+    const { stdin } = render(
+      <TextArea
+        isActive
+        onSubmit={() => {}}
+        onChange={onChange}
+        keybindings={{ "Alt+Enter": false }}
+      />,
+    );
+    await wait();
+    stdin.write("ab");
+    await wait();
+    onChange.mockClear();
+    stdin.write("\x1b[27;3;13~");
+    await wait();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("Up: disabled blocks cursor up", async () => {
+    const onCursorChange = vi.fn();
+    const { stdin } = render(
+      <TextArea
+        isActive
+        onSubmit={() => {}}
+        value={"ab\ncd"}
+        cursorPosition={[1, 1]}
+        onChange={() => {}}
+        onCursorChange={onCursorChange}
+        keybindings={{ Up: false }}
+      />,
+    );
+    await wait();
+    onCursorChange.mockClear();
+    stdin.write("\x1b[A");
+    await wait();
+    expect(onCursorChange).not.toHaveBeenCalled();
+  });
+
+  it("Down: disabled blocks cursor down", async () => {
+    const onCursorChange = vi.fn();
+    const { stdin } = render(
+      <TextArea
+        isActive
+        onSubmit={() => {}}
+        value={"ab\ncd"}
+        cursorPosition={[0, 1]}
+        onChange={() => {}}
+        onCursorChange={onCursorChange}
+        keybindings={{ Down: false }}
+      />,
+    );
+    await wait();
+    onCursorChange.mockClear();
+    stdin.write("\x1b[B");
+    await wait();
+    expect(onCursorChange).not.toHaveBeenCalled();
+  });
+
+  it("Left: disabled blocks cursor left", async () => {
+    const onCursorChange = vi.fn();
+    const { stdin } = render(
+      <TextArea
+        isActive
+        onSubmit={() => {}}
+        value="abc"
+        cursorPosition={[0, 2]}
+        onChange={() => {}}
+        onCursorChange={onCursorChange}
+        keybindings={{ Left: false }}
+      />,
+    );
+    await wait();
+    onCursorChange.mockClear();
+    stdin.write("\x1b[D");
+    await wait();
+    expect(onCursorChange).not.toHaveBeenCalled();
+  });
+
+  it("Right: disabled blocks cursor right", async () => {
+    const onCursorChange = vi.fn();
+    const { stdin } = render(
+      <TextArea
+        isActive
+        onSubmit={() => {}}
+        value="abc"
+        cursorPosition={[0, 1]}
+        onChange={() => {}}
+        onCursorChange={onCursorChange}
+        keybindings={{ Right: false }}
+      />,
+    );
+    await wait();
+    onCursorChange.mockClear();
+    stdin.write("\x1b[C");
+    await wait();
+    expect(onCursorChange).not.toHaveBeenCalled();
+  });
+
+  it("Alt+B: disabled blocks prev-word jump", async () => {
+    const onCursorChange = vi.fn();
+    const { stdin } = render(
+      <TextArea
+        isActive
+        onSubmit={() => {}}
+        value="hello world"
+        cursorPosition={[0, 11]}
+        onChange={() => {}}
+        onCursorChange={onCursorChange}
+        keybindings={{ "Alt+B": false }}
+      />,
+    );
+    await wait();
+    onCursorChange.mockClear();
+    stdin.write("\x1bb");
+    await wait();
+    expect(onCursorChange).not.toHaveBeenCalled();
+  });
+
+  it("Alt+F: disabled blocks next-word jump", async () => {
+    const onCursorChange = vi.fn();
+    const { stdin } = render(
+      <TextArea
+        isActive
+        onSubmit={() => {}}
+        value="hello world"
+        cursorPosition={[0, 0]}
+        onChange={() => {}}
+        onCursorChange={onCursorChange}
+        keybindings={{ "Alt+F": false }}
+      />,
+    );
+    await wait();
+    onCursorChange.mockClear();
+    stdin.write("\x1bf");
+    await wait();
+    expect(onCursorChange).not.toHaveBeenCalled();
+  });
+
+  it("Ctrl+A: disabled blocks line-start jump", async () => {
+    const onCursorChange = vi.fn();
+    const { stdin } = render(
+      <TextArea
+        isActive
+        onSubmit={() => {}}
+        value="hello"
+        cursorPosition={[0, 5]}
+        onChange={() => {}}
+        onCursorChange={onCursorChange}
+        keybindings={{ "Ctrl+A": false }}
+      />,
+    );
+    await wait();
+    onCursorChange.mockClear();
+    stdin.write("\x01");
+    await wait();
+    expect(onCursorChange).not.toHaveBeenCalled();
+  });
+
+  it("Ctrl+E: disabled blocks line-end jump", async () => {
+    const onCursorChange = vi.fn();
+    const { stdin } = render(
+      <TextArea
+        isActive
+        onSubmit={() => {}}
+        value="hello"
+        cursorPosition={[0, 0]}
+        onChange={() => {}}
+        onCursorChange={onCursorChange}
+        keybindings={{ "Ctrl+E": false }}
+      />,
+    );
+    await wait();
+    onCursorChange.mockClear();
+    stdin.write("\x05");
+    await wait();
+    expect(onCursorChange).not.toHaveBeenCalled();
+  });
+
+  it("Ctrl+W: disabled blocks delete-prev-word", async () => {
+    const onChange = vi.fn();
+    const { stdin } = render(
+      <TextArea
+        isActive
+        onSubmit={() => {}}
+        onChange={onChange}
+        keybindings={{ "Ctrl+W": false }}
+      />,
+    );
+    await wait();
+    stdin.write("hello world");
+    await wait();
+    onChange.mockClear();
+    stdin.write("\x17");
+    await wait();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("Ctrl+U: disabled blocks delete-to-line-start", async () => {
+    const onChange = vi.fn();
+    const { stdin } = render(
+      <TextArea
+        isActive
+        onSubmit={() => {}}
+        onChange={onChange}
+        keybindings={{ "Ctrl+U": false }}
+      />,
+    );
+    await wait();
+    stdin.write("hello");
+    await wait();
+    onChange.mockClear();
+    stdin.write("\x15");
+    await wait();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("Ctrl+K: disabled blocks delete-to-line-end", async () => {
+    const onChange = vi.fn();
+    const { stdin } = render(
+      <TextArea
+        isActive
+        onSubmit={() => {}}
+        onChange={onChange}
+        keybindings={{ "Ctrl+K": false }}
+      />,
+    );
+    await wait();
+    stdin.write("hello");
+    await wait();
+    stdin.write("\x01"); // Ctrl+A → cursor to line start
+    await wait();
+    onChange.mockClear();
+    stdin.write("\x0b");
+    await wait();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("Backspace: disabled blocks delete-prev-grapheme", async () => {
+    const onChange = vi.fn();
+    const { stdin } = render(
+      <TextArea
+        isActive
+        onSubmit={() => {}}
+        onChange={onChange}
+        keybindings={{ Backspace: false }}
+      />,
+    );
+    await wait();
+    stdin.write("ab");
+    await wait();
+    onChange.mockClear();
+    stdin.write("\x7f");
+    await wait();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("Delete: disabled blocks delete-prev-grapheme via Delete key", async () => {
+    const onChange = vi.fn();
+    const { stdin } = render(
+      <TextArea
+        isActive
+        onSubmit={() => {}}
+        onChange={onChange}
+        keybindings={{ Delete: false }}
+      />,
+    );
+    await wait();
+    stdin.write("ab");
+    await wait();
+    onChange.mockClear();
+    stdin.write("\x1b[3~"); // Delete key
+    await wait();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("Alt+Backspace: disabled blocks delete-prev-word via meta", async () => {
+    const onChange = vi.fn();
+    const { stdin } = render(
+      <TextArea
+        isActive
+        onSubmit={() => {}}
+        onChange={onChange}
+        keybindings={{ "Alt+Backspace": false }}
+      />,
+    );
+    await wait();
+    stdin.write("hello world");
+    await wait();
+    onChange.mockClear();
+    stdin.write("\x1b\x7f");
+    await wait();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("Ctrl+Z: disabled blocks undo", async () => {
+    const onChange = vi.fn();
+    const { stdin } = render(
+      <TextArea
+        isActive
+        onSubmit={() => {}}
+        onChange={onChange}
+        keybindings={{ "Ctrl+Z": false }}
+      />,
+    );
+    await wait();
+    stdin.write("ab");
+    await wait();
+    onChange.mockClear();
+    stdin.write("\x1a");
+    await wait();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("merges over defaults: disabling Ctrl+Z does not disable Ctrl+W", async () => {
+    const onChange = vi.fn();
+    const { stdin } = render(
+      <TextArea
+        isActive
+        onSubmit={() => {}}
+        onChange={onChange}
+        keybindings={{ "Ctrl+Z": false }}
+      />,
+    );
+    await wait();
+    stdin.write("hello world");
+    await wait();
+    onChange.mockClear();
+    stdin.write("\x17"); // Ctrl+W deletes "world"
+    await wait();
+    expect(onChange).toHaveBeenCalled();
+    const lastVal = onChange.mock.calls[onChange.mock.calls.length - 1]?.[0];
+    expect(lastVal).toBe("hello ");
+  });
+
+  it("disableArrowNavigation=true force-disables Up even if keybindings.Up=true", async () => {
+    const onCursorChange = vi.fn();
+    const { stdin } = render(
+      <TextArea
+        isActive
+        onSubmit={() => {}}
+        value={"ab\ncd"}
+        cursorPosition={[1, 1]}
+        onChange={() => {}}
+        onCursorChange={onCursorChange}
+        disableArrowNavigation={true}
+        keybindings={{ Up: true }}
+      />,
+    );
+    await wait();
+    onCursorChange.mockClear();
+    stdin.write("\x1b[A");
+    await wait();
+    expect(onCursorChange).not.toHaveBeenCalled();
+  });
+});

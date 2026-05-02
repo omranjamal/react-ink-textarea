@@ -1,4 +1,4 @@
-import { Box, Text, useBoxMetrics } from "ink";
+import { Box, Text, useBoxMetrics, useStdout } from "ink";
 import type { DOMElement } from "ink";
 import { useRef, useState, useEffect, useMemo } from "react";
 import type { ReactNode } from "react";
@@ -10,6 +10,8 @@ import {
   DEFAULT_AUTO_NEW_LINE_LIMIT,
   DEFAULT_INITIAL_LINE_COUNT,
   DEFAULT_TAB_WIDTH,
+  DEFAULT_KEYBINDINGS,
+  NAV_KEYBINDINGS,
 } from "./constants.js";
 import {
   getCursorLineAndColumn,
@@ -30,6 +32,7 @@ import type {
   TLinePrefixProps,
   TStyleProps,
   TStyles,
+  TKeybinding,
 } from "./types.js";
 
 type InvisiblesConfig = {
@@ -215,7 +218,7 @@ export const TextArea = ({
   autoNewLineLimit = DEFAULT_AUTO_NEW_LINE_LIMIT,
   highlightActiveLine = false,
   activeLineColor = undefined,
-  enableArrowNavigation = true,
+  disableArrowNavigation = false,
   value: controlledValue,
   cursorPosition: controlledPosition,
   onChange,
@@ -232,7 +235,18 @@ export const TextArea = ({
   showInvisibles = false,
   styles,
   labels,
+  keybindings,
 }: TextAreaProps): ReactNode => {
+  const resolvedKeybindings = useMemo<Readonly<Record<TKeybinding, boolean>>>(() => {
+    const merged: Record<TKeybinding, boolean> = {
+      ...DEFAULT_KEYBINDINGS,
+      ...(keybindings ?? {}),
+    };
+    if (disableArrowNavigation === true) {
+      for (const k of NAV_KEYBINDINGS) merged[k] = false;
+    }
+    return merged;
+  }, [keybindings, disableArrowNavigation]);
   const resolvedStyles = useMemo(() => resolveStyles(styles), [styles]);
   const textProps = useMemo(
     () => styleToTextProps(resolvedStyles.text),
@@ -342,7 +356,7 @@ export const TextArea = ({
     isActive,
     value,
     cursor,
-    enableArrowNavigation,
+    keybindings: resolvedKeybindings,
     autoNewLineLimit,
     onSubmit,
     onFirstLineUp,
@@ -515,9 +529,25 @@ export const TextArea = ({
     ? visualRowForCursor(visualRows, cursorLine, cursorColumn, lineWidth)
     : -1;
 
+  const { stdout } = useStdout();
+  const [terminalRows, setTerminalRows] = useState<number>(stdout?.rows ?? 0);
+  useEffect(() => {
+    if (!stdout) return;
+    const onResize = (): void => setTerminalRows(stdout.rows);
+    stdout.on("resize", onResize);
+    return () => {
+      stdout.off("resize", onResize);
+    };
+  }, [stdout]);
+  const resolvedViewportLines =
+    viewportLines ??
+    (terminalRows > 0
+      ? Math.max(1, Math.floor(terminalRows * 0.5))
+      : Number.POSITIVE_INFINITY);
+
   const { visibleRowStart, visibleRowEnd } = useViewport({
     rowCount: Math.max(visualRows.length, initialLineCount),
-    viewportLines: viewportLines ?? Number.POSITIVE_INFINITY,
+    viewportLines: resolvedViewportLines,
     cursorRowIndex,
   });
 

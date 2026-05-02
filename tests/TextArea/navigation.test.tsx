@@ -4,7 +4,7 @@ import { TextArea } from "../../src/index.js";
 import { waitFor } from "../_util/wait.js";
 
 describe("TextArea > Navigation Lock", () => {
-  it("moves cursor with arrow keys when enableArrowNavigation is true", async () => {
+  it("moves cursor with arrow keys when disableArrowNavigation is false", async () => {
     const onCursorChange = vi.fn();
     const { stdin } = render(
       <TextArea
@@ -14,7 +14,7 @@ describe("TextArea > Navigation Lock", () => {
         cursorPosition={[0, 0]}
         onChange={() => {}}
         onCursorChange={onCursorChange}
-        enableArrowNavigation={true}
+        disableArrowNavigation={false}
       />,
     );
 
@@ -28,7 +28,7 @@ describe("TextArea > Navigation Lock", () => {
     );
   });
 
-  it("does not move cursor with arrow keys when enableArrowNavigation is false", async () => {
+  it("does not move cursor with arrow keys when disableArrowNavigation is true", async () => {
     const onCursorChange = vi.fn();
     const { stdin } = render(
       <TextArea
@@ -38,7 +38,7 @@ describe("TextArea > Navigation Lock", () => {
         cursorPosition={[0, 0]}
         onChange={() => {}}
         onCursorChange={onCursorChange}
-        enableArrowNavigation={false}
+        disableArrowNavigation={true}
       />,
     );
 
@@ -48,7 +48,7 @@ describe("TextArea > Navigation Lock", () => {
     expect(onCursorChange).not.toHaveBeenCalled();
   });
 
-  it("still allows typing when enableArrowNavigation is false", async () => {
+  it("still allows typing when disableArrowNavigation is true", async () => {
     const onChange = vi.fn();
     const { stdin } = render(
       <TextArea
@@ -56,7 +56,7 @@ describe("TextArea > Navigation Lock", () => {
         onSubmit={() => {}}
         value=""
         onChange={onChange}
-        enableArrowNavigation={false}
+        disableArrowNavigation={true}
       />,
     );
 
@@ -66,7 +66,7 @@ describe("TextArea > Navigation Lock", () => {
     expect(onChange).toHaveBeenCalledWith("hello");
   });
 
-  it("still allows newline insertion when enableArrowNavigation is false", async () => {
+  it("still allows newline insertion when disableArrowNavigation is true", async () => {
     const onChange = vi.fn();
     const { stdin } = render(
       <TextArea
@@ -75,7 +75,7 @@ describe("TextArea > Navigation Lock", () => {
         value="line1"
         cursorPosition={[0, 5]}
         onChange={onChange}
-        enableArrowNavigation={false}
+        disableArrowNavigation={true}
       />,
     );
 
@@ -85,7 +85,7 @@ describe("TextArea > Navigation Lock", () => {
     expect(onChange).toHaveBeenCalledWith("line1\n");
   });
 
-  it("prevents all arrow directions when enableArrowNavigation is false", async () => {
+  it("prevents all arrow directions when disableArrowNavigation is true", async () => {
     const onCursorChange = vi.fn();
     const { stdin } = render(
       <TextArea
@@ -95,7 +95,7 @@ describe("TextArea > Navigation Lock", () => {
         cursorPosition={[1, 0]}
         onChange={() => {}}
         onCursorChange={onCursorChange}
-        enableArrowNavigation={false}
+        disableArrowNavigation={true}
       />,
     );
 

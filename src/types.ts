@@ -43,6 +43,30 @@ export type TLabelRule = {
 };
 export type TLabels = readonly TLabelRule[];
 
+export type TKeybinding =
+  | "Enter"
+  | "Ctrl+J"
+  | "Ctrl+Enter"
+  | "Shift+Enter"
+  | "Alt+Enter"
+  | "Up"
+  | "Down"
+  | "Left"
+  | "Right"
+  | "Alt+B"
+  | "Alt+F"
+  | "Ctrl+A"
+  | "Ctrl+E"
+  | "Ctrl+W"
+  | "Ctrl+U"
+  | "Ctrl+K"
+  | "Backspace"
+  | "Delete"
+  | "Alt+Backspace"
+  | "Ctrl+Z";
+
+export type TKeybindings = Partial<Readonly<Record<TKeybinding, boolean>>>;
+
 export type TextAreaProps = {
   readonly isActive: boolean;
   readonly onSubmit: (value: string) => void;
@@ -55,7 +79,7 @@ export type TextAreaProps = {
   readonly autoNewLineLimit?: number;
   readonly highlightActiveLine?: boolean;
   readonly activeLineColor?: string;
-  readonly enableArrowNavigation?: boolean;
+  readonly disableArrowNavigation?: boolean;
   // Controlled mode props
   readonly value?: string;
   readonly cursorPosition?: [line: number, col: number];
@@ -83,4 +107,5 @@ export type TextAreaProps = {
   readonly showInvisibles?: TShowInvisibles;
   readonly styles?: TStyles;
   readonly labels?: TLabels;
+  readonly keybindings?: TKeybindings;
 };
