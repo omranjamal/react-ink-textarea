@@ -5,7 +5,7 @@ import { TextArea } from "ink-textarea";
 
 const App = () => {
   const [submitted, setSubmitted] = useState("");
-  const [isActive, setIsActive] = useState(true);
+  const [focus, setIsActive] = useState(true);
 
   const handleSubmit = (value: string) => {
     setSubmitted(value);
@@ -18,7 +18,7 @@ const App = () => {
       <Text dimColor>Ctrl+J for new line, Enter to submit</Text>
 
       <TextArea
-        isActive={isActive}
+        focus={focus}
         onSubmit={handleSubmit}
         placeholder="Type your message here..."
       />

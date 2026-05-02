@@ -6,7 +6,7 @@ import { settle } from "../_util/wait.js";
 describe("TextArea > Undo/Redo", () => {
   it("Ctrl+Z reverts last character", async () => {
     const { stdin, lastFrame } = render(
-      <TextArea isActive={true} onSubmit={() => {}} undoGroupDelay={0} />,
+      <TextArea focus={true} onSubmit={() => {}} undoGroupDelay={0} />,
     );
 
     stdin.write("a");
@@ -26,7 +26,7 @@ describe("TextArea > Undo/Redo", () => {
   it("Ctrl+Z is no-op with empty stack", async () => {
     const onChange = vi.fn();
     const { stdin } = render(
-      <TextArea isActive={true} onSubmit={() => {}} onChange={onChange} />,
+      <TextArea focus={true} onSubmit={() => {}} onChange={onChange} />,
     );
 
     onChange.mockClear();
@@ -39,7 +39,7 @@ describe("TextArea > Undo/Redo", () => {
 
   it("multiple undos restore each prior state", async () => {
     const { stdin, lastFrame } = render(
-      <TextArea isActive={true} onSubmit={() => {}} undoGroupDelay={0} />,
+      <TextArea focus={true} onSubmit={() => {}} undoGroupDelay={0} />,
     );
 
     stdin.write("a");
@@ -62,7 +62,7 @@ describe("TextArea > Undo/Redo", () => {
   it("maxUndo=1 keeps only one undo entry", async () => {
     const { stdin, lastFrame } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         maxUndo={1}
         undoGroupDelay={0}
@@ -87,7 +87,7 @@ describe("TextArea > Undo/Redo", () => {
 
   it("undo groups inserts with undoGroupDelay=0 as separate entries", async () => {
     const { stdin, lastFrame } = render(
-      <TextArea isActive={true} onSubmit={() => {}} undoGroupDelay={0} />,
+      <TextArea focus={true} onSubmit={() => {}} undoGroupDelay={0} />,
     );
 
     stdin.write("x");

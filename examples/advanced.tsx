@@ -1,7 +1,6 @@
 import { render, Box, Text } from "ink";
 import { useState, useMemo } from "react";
-import React from "react";
-import { TextArea, LineNumber, type TLabels } from "ink-textarea";
+import { TextArea, LineNumberPrefix, type TLabels } from "ink-textarea";
 
 const SLASH_COMMANDS = new Set(["/train", "/help", "/quit"]);
 
@@ -44,7 +43,7 @@ const App = () => {
       </Text>
 
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={setSubmitted}
         placeholder={`Write some code...
 Use arrow keys to navigate
@@ -72,35 +71,7 @@ Ctrl+Enter for new line`}
         onDimensions={setLineWidth}
         labels={labels}
         styles={styles}
-        linePrefix={({
-          lineNumber,
-          totalLines,
-          isActiveLine,
-          isVirtualLine,
-          isContinuationLine,
-        }) => {
-          const numWidth = String(totalLines).length;
-          const numText = isContinuationLine
-            ? "│".padStart(numWidth, " ")
-            : String(lineNumber + 1).padStart(numWidth, " ");
-          return (
-            <Text>
-              <Text color={isActiveLine ? "magenta" : "gray"}>│ </Text>
-              <Text
-                color={
-                  isVirtualLine || isContinuationLine
-                    ? "gray"
-                    : isActiveLine
-                      ? "magenta"
-                      : "white"
-                }
-              >
-                {numText}
-              </Text>
-              <Text color={isActiveLine ? "magenta" : "gray"}> │ </Text>
-            </Text>
-          );
-        }}
+        linePrefix={LineNumberPrefix}
       />
 
       <Text dimColor>

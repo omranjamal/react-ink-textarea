@@ -8,7 +8,7 @@ const PASTE_END = "\x1b[201~";
 describe("TextArea > Multi-line paste", () => {
   it("inserts pasted multi-line text with \\n separators", async () => {
     const { stdin, lastFrame } = render(
-      <TextArea isActive={true} onSubmit={() => {}} />,
+      <TextArea focus={true} onSubmit={() => {}} />,
     );
 
     stdin.write(`${PASTE_START}line1\nline2\nline3${PASTE_END}`);
@@ -22,7 +22,7 @@ describe("TextArea > Multi-line paste", () => {
 
   it("normalizes \\r\\n (CRLF) line endings on paste", async () => {
     const { stdin, lastFrame } = render(
-      <TextArea isActive={true} onSubmit={() => {}} />,
+      <TextArea focus={true} onSubmit={() => {}} />,
     );
 
     stdin.write(`${PASTE_START}line1\r\nline2\r\nline3${PASTE_END}`);
@@ -37,7 +37,7 @@ describe("TextArea > Multi-line paste", () => {
 
   it("normalizes bare \\r (CR) line endings on paste", async () => {
     const { stdin, lastFrame } = render(
-      <TextArea isActive={true} onSubmit={() => {}} />,
+      <TextArea focus={true} onSubmit={() => {}} />,
     );
 
     stdin.write(`${PASTE_START}line1\rline2\rline3${PASTE_END}`);
@@ -54,7 +54,7 @@ describe("TextArea > Multi-line paste", () => {
     const onCursorChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         onCursorChange={onCursorChange}
       />,
@@ -73,7 +73,7 @@ describe("TextArea > Multi-line paste", () => {
     const onChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         onChange={onChange}
       />,

@@ -7,7 +7,7 @@ describe("TextArea > Keybindings", () => {
     const onCursorChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         onCursorChange={onCursorChange}
       />,
@@ -28,7 +28,7 @@ describe("TextArea > Keybindings", () => {
     const onCursorChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         onCursorChange={onCursorChange}
       />,
@@ -50,7 +50,7 @@ describe("TextArea > Keybindings", () => {
 
   it("Ctrl+W deletes word before cursor", async () => {
     const { stdin, lastFrame } = render(
-      <TextArea isActive={true} onSubmit={() => {}} />,
+      <TextArea focus={true} onSubmit={() => {}} />,
     );
 
     stdin.write("hello world");
@@ -65,7 +65,7 @@ describe("TextArea > Keybindings", () => {
 
   it("Ctrl+U deletes to start of current line", async () => {
     const { stdin, lastFrame } = render(
-      <TextArea isActive={true} onSubmit={() => {}} />,
+      <TextArea focus={true} onSubmit={() => {}} />,
     );
 
     stdin.write("hello world");
@@ -82,7 +82,7 @@ describe("TextArea > Keybindings", () => {
     const onCursorChange = vi.fn();
     const { stdin, lastFrame } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         onCursorChange={onCursorChange}
       />,
@@ -105,7 +105,7 @@ describe("TextArea > Keybindings", () => {
     const onChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         onChange={onChange}
       />,
@@ -131,7 +131,7 @@ describe("TextArea > Keybindings", () => {
     const onCursorChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         onCursorChange={onCursorChange}
       />,
@@ -152,7 +152,7 @@ describe("TextArea > Keybindings", () => {
     const onCursorChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         onCursorChange={onCursorChange}
       />,
@@ -176,7 +176,7 @@ describe("TextArea > Keybindings", () => {
     const onChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         onChange={onChange}
       />,
@@ -196,7 +196,7 @@ describe("TextArea > Keybindings", () => {
     const onTab = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         onTab={onTab}
       />,
@@ -213,7 +213,7 @@ describe("TextArea > Keybindings", () => {
     const onTab = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         onTab={onTab}
       />,
@@ -230,7 +230,7 @@ describe("TextArea > Keybindings", () => {
     const onFirstCharacterLeft = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         value="abc"
         cursorPosition={[0, 0]}
@@ -248,7 +248,7 @@ describe("TextArea > Keybindings", () => {
     const onFirstCharacterLeft = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         value="abc"
         cursorPosition={[0, 1]}
@@ -266,7 +266,7 @@ describe("TextArea > Keybindings", () => {
     const onLastCharacterRight = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         value="abc"
         cursorPosition={[0, 3]}
@@ -284,7 +284,7 @@ describe("TextArea > Keybindings", () => {
     const onLastCharacterRight = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         value="abc"
         cursorPosition={[0, 0]}
@@ -302,7 +302,7 @@ describe("TextArea > Keybindings", () => {
     const onFirstCharacterLeft = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         value={"ab\ncd"}
         cursorPosition={[1, 0]}
@@ -324,7 +324,7 @@ describe("TextArea > keybindings flag map", () => {
     const onSubmit = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive
+        focus
         onSubmit={onSubmit}
         keybindings={{ Enter: false }}
       />,
@@ -344,7 +344,7 @@ describe("TextArea > keybindings flag map", () => {
     const onChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive
+        focus
         onSubmit={() => {}}
         onChange={onChange}
         keybindings={{ "Ctrl+Enter": false }}
@@ -363,7 +363,7 @@ describe("TextArea > keybindings flag map", () => {
     const onChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive
+        focus
         onSubmit={() => {}}
         onChange={onChange}
         keybindings={{ "Shift+Enter": false }}
@@ -382,7 +382,7 @@ describe("TextArea > keybindings flag map", () => {
     const onChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive
+        focus
         onSubmit={() => {}}
         onChange={onChange}
         keybindings={{ "Alt+Enter": false }}
@@ -401,7 +401,7 @@ describe("TextArea > keybindings flag map", () => {
     const onCursorChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive
+        focus
         onSubmit={() => {}}
         value={"ab\ncd"}
         cursorPosition={[1, 1]}
@@ -421,7 +421,7 @@ describe("TextArea > keybindings flag map", () => {
     const onCursorChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive
+        focus
         onSubmit={() => {}}
         value={"ab\ncd"}
         cursorPosition={[0, 1]}
@@ -441,7 +441,7 @@ describe("TextArea > keybindings flag map", () => {
     const onCursorChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive
+        focus
         onSubmit={() => {}}
         value="abc"
         cursorPosition={[0, 2]}
@@ -461,7 +461,7 @@ describe("TextArea > keybindings flag map", () => {
     const onCursorChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive
+        focus
         onSubmit={() => {}}
         value="abc"
         cursorPosition={[0, 1]}
@@ -481,7 +481,7 @@ describe("TextArea > keybindings flag map", () => {
     const onCursorChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive
+        focus
         onSubmit={() => {}}
         value="hello world"
         cursorPosition={[0, 11]}
@@ -501,7 +501,7 @@ describe("TextArea > keybindings flag map", () => {
     const onCursorChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive
+        focus
         onSubmit={() => {}}
         value="hello world"
         cursorPosition={[0, 0]}
@@ -521,7 +521,7 @@ describe("TextArea > keybindings flag map", () => {
     const onCursorChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive
+        focus
         onSubmit={() => {}}
         value="hello"
         cursorPosition={[0, 5]}
@@ -541,7 +541,7 @@ describe("TextArea > keybindings flag map", () => {
     const onCursorChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive
+        focus
         onSubmit={() => {}}
         value="hello"
         cursorPosition={[0, 0]}
@@ -561,7 +561,7 @@ describe("TextArea > keybindings flag map", () => {
     const onChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive
+        focus
         onSubmit={() => {}}
         onChange={onChange}
         keybindings={{ "Ctrl+W": false }}
@@ -580,7 +580,7 @@ describe("TextArea > keybindings flag map", () => {
     const onChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive
+        focus
         onSubmit={() => {}}
         onChange={onChange}
         keybindings={{ "Ctrl+U": false }}
@@ -599,7 +599,7 @@ describe("TextArea > keybindings flag map", () => {
     const onChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive
+        focus
         onSubmit={() => {}}
         onChange={onChange}
         keybindings={{ "Ctrl+K": false }}
@@ -620,7 +620,7 @@ describe("TextArea > keybindings flag map", () => {
     const onChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive
+        focus
         onSubmit={() => {}}
         onChange={onChange}
         keybindings={{ Backspace: false }}
@@ -639,7 +639,7 @@ describe("TextArea > keybindings flag map", () => {
     const onChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive
+        focus
         onSubmit={() => {}}
         onChange={onChange}
         keybindings={{ Delete: false }}
@@ -658,7 +658,7 @@ describe("TextArea > keybindings flag map", () => {
     const onChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive
+        focus
         onSubmit={() => {}}
         onChange={onChange}
         keybindings={{ "Alt+Backspace": false }}
@@ -677,7 +677,7 @@ describe("TextArea > keybindings flag map", () => {
     const onChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive
+        focus
         onSubmit={() => {}}
         onChange={onChange}
         keybindings={{ "Ctrl+Z": false }}
@@ -696,7 +696,7 @@ describe("TextArea > keybindings flag map", () => {
     const onChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive
+        focus
         onSubmit={() => {}}
         onChange={onChange}
         keybindings={{ "Ctrl+Z": false }}
@@ -717,7 +717,7 @@ describe("TextArea > keybindings flag map", () => {
     const onCursorChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive
+        focus
         onSubmit={() => {}}
         value={"ab\ncd"}
         cursorPosition={[1, 1]}

@@ -9,7 +9,7 @@ describe("TextArea > Virtual Line Detection", () => {
     const linePrefix = vi.fn((_props: TLinePrefixProps) => <Text>{"> "}</Text>);
     render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         linePrefix={linePrefix}
         initialLineCount={4}
@@ -38,7 +38,7 @@ describe("TextArea > Virtual Line Detection", () => {
     const linePrefix = vi.fn((_props: TLinePrefixProps) => <Text>{"> "}</Text>);
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         linePrefix={linePrefix}
         initialLineCount={4}
@@ -63,7 +63,7 @@ describe("TextArea > Virtual Line Detection", () => {
     const linePrefix = vi.fn((_props: TLinePrefixProps) => <Text>{"> "}</Text>);
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         linePrefix={linePrefix}
         initialLineCount={4}
@@ -91,7 +91,7 @@ describe("TextArea > Virtual Line Detection", () => {
     const linePrefix = vi.fn((_props: TLinePrefixProps) => <Text>{"> "}</Text>);
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         linePrefix={linePrefix}
         initialLineCount={6}

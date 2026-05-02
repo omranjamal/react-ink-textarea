@@ -6,7 +6,7 @@ describe("TextArea > Controlled Mode", () => {
   it("renders controlled value", () => {
     const { lastFrame } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         value="controlled text"
         cursorPosition={[0, 17]}
@@ -22,7 +22,7 @@ describe("TextArea > Controlled Mode", () => {
     const onChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         value=""
         onChange={onChange}
@@ -39,7 +39,7 @@ describe("TextArea > Controlled Mode", () => {
     const onCursorChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         value="hello"
         cursorPosition={[0, 3]}
@@ -61,7 +61,7 @@ describe("TextArea > Controlled Mode", () => {
     const onCursorChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         value="hello"
         cursorPosition={[0, 5]}
@@ -84,7 +84,7 @@ describe("TextArea > Controlled Mode", () => {
     const onChange = vi.fn();
     const { stdin, lastFrame } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         value="fixed"
         cursorPosition={[0, 5]}
@@ -106,7 +106,7 @@ describe("TextArea > Controlled Mode", () => {
     const onChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         value="hello"
         cursorPosition={[0, 5]}
@@ -124,7 +124,7 @@ describe("TextArea > Controlled Mode", () => {
     const onChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         value="line1"
         cursorPosition={[0, 5]}
@@ -142,7 +142,7 @@ describe("TextArea > Controlled Mode", () => {
     const onCursorChange = vi.fn();
     render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         value="hello"
         cursorPosition={[100, 0]}
@@ -164,7 +164,7 @@ describe("TextArea > Controlled Mode", () => {
     const onCursorChange = vi.fn();
     render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         value="hi"
         cursorPosition={[0, 100]}
@@ -186,7 +186,7 @@ describe("TextArea > Controlled Mode", () => {
     const onCursorChange = vi.fn();
     render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         value="hello"
         cursorPosition={[-5, 2]}
@@ -208,7 +208,7 @@ describe("TextArea > Controlled Mode", () => {
     const onCursorChange = vi.fn();
     render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         value="hello"
         cursorPosition={[0, -10]}
@@ -230,7 +230,7 @@ describe("TextArea > Controlled Mode", () => {
     const onCursorChange = vi.fn();
     render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         value={"line1\nline2\nline3"}
         cursorPosition={[Infinity, 0]}
@@ -252,7 +252,7 @@ describe("TextArea > Controlled Mode", () => {
     const onCursorChange = vi.fn();
     render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         value="test"
         cursorPosition={[0, Infinity]}
@@ -273,7 +273,7 @@ describe("TextArea > Controlled Mode", () => {
   it("normalizes CRLF in controlled value", async () => {
     const { lastFrame } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         value={"a\r\nb\r\nc"}
         cursorPosition={[2, 0]}
@@ -293,7 +293,7 @@ describe("TextArea > Controlled Mode", () => {
   it("normalizes lone CR (old-Mac line endings) in controlled value", async () => {
     const { lastFrame } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         value={"a\rb"}
         cursorPosition={[1, 0]}
@@ -313,7 +313,7 @@ describe("TextArea > Controlled Mode", () => {
     const onCursorChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         value={"a\r\nb"}
         cursorPosition={[0, 1]}
@@ -338,7 +338,7 @@ describe("TextArea > Controlled Mode", () => {
     const onCursorChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         value={"line1\nline2\nline3"}
         cursorPosition={[1, 3]}

@@ -7,7 +7,7 @@ describe("TextArea > onDimensions", () => {
     const onDimensions = vi.fn();
     const { stdin, lastFrame } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         onDimensions={onDimensions}
       />,
@@ -23,7 +23,7 @@ describe("TextArea > onDimensions", () => {
     const onDimensions = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         onDimensions={onDimensions}
       />,
@@ -40,7 +40,7 @@ describe("TextArea > onDimensions", () => {
 describe("TextArea > Character-level chunking", () => {
   it("renders text correctly when lineWidth is 0 (before measurement)", async () => {
     const { stdin, lastFrame } = render(
-      <TextArea isActive={true} onSubmit={() => {}} />,
+      <TextArea focus={true} onSubmit={() => {}} />,
     );
 
     stdin.write("hello world");
@@ -52,7 +52,7 @@ describe("TextArea > Character-level chunking", () => {
 
   it("renders multiline text with correct line count", async () => {
     const { stdin, lastFrame } = render(
-      <TextArea isActive={true} onSubmit={() => {}} />,
+      <TextArea focus={true} onSubmit={() => {}} />,
     );
 
     stdin.write("line1");

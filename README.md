@@ -14,12 +14,13 @@ Build rich CLI forms with a full-featured textarea that supports multi-line edit
   - `initialLineCount` pads short buffers with virtual rows.
 - 🪪 **Custom gutters**
   - `linePrefix` render-prop with `lineNumber`, `totalLines`, `isActiveLine`, `isVirtualLine`, `isContinuationLine`, `continuationIndex`.
-  - Bundled `<LineNumber />` component with active-color, pad char, suffix.
+  - Drop-in `<LineNumberPrefix />` for a bordered, active-aware gutter — pass straight to `linePrefix`.
+  - Bundled `<LineNumber />` component with active-color, pad char, suffix for fully custom gutters.
 - 🌈 **Syntax highlighting & theming**
   - Regex-driven labels: `labels: [{ pattern, label }]`.
   - Function-form labels for veto / allowlist (`label: match => string | undefined`).
   - Multiple rules → same label; first rule wins on overlap.
-  - Per-label `styles`: `color`, `bgColor`, `bold`, `italic`, `underline`, `strikethrough`, `dim`, `inverse`. Hex + named ANSI.
+  - Per-label `styles`: `color`, `bgColor`, `bold`, `italic`, `underline`, `strikethrough`, `dim`, `inverse`. `color`/`bgColor` accept any value Ink's `<Text>` accepts — hex, RGB, or named ([color reference](https://github.com/vadimdemedes/ink#color)).
   - Reserved style keys `text` and `invisibleCharacter`, deep-merged over defaults.
   - `onCursorChange` reports the label and chunk index under the cursor.
 - ⌨️ **Editing**
@@ -48,10 +49,10 @@ Build rich CLI forms with a full-featured textarea that supports multi-line edit
   - Controlled, uncontrolled, or mixed (`value` + `cursorPosition` optional).
   - Out-of-bounds cursor clamped, reported via `onCursorChange` — no desync.
   - Callbacks: `onChange`, `onSubmit`, `onCursorChange`, `onDimensions`, `onTab`, plus boundary callbacks.
-  - `isActive` makes it read-only without unmounting.
+  - `focus` makes it read-only without unmounting.
 - 🧷 **TypeScript**
   - Strict, all props `readonly`.
-  - Exports: `TextAreaProps`, `TLinePrefixProps`, `TLinePrefixFn`, `TShowInvisibles`, `TStyleProps`, `TStyles`, `TLabels`, `TLabelRule`, `TLabelFn`, `LineNumberProps`.
+  - Exports: `TextAreaProps`, `TLinePrefixProps`, `TLinePrefixFn`, `TShowInvisibles`, `TStyleProps`, `TStyles`, `TLabels`, `TLabelRule`, `TLabelFn`, `TKeybinding`, `TKeybindings`, `LineNumberProps`, `LineNumberPrefixProps`. Tree-shakable (`"sideEffects": false`).
   - Render-prop and label-fn signatures fully inferred.
 - 🧪 **Testable**
   - Works with [`ink-testing-library`](https://github.com/vadimdemedes/ink-testing-library); 250+ tests in-repo as a pattern bank.
@@ -68,7 +69,9 @@ pnpm add ink-textarea
 
 ## Usage
 
-### Basic
+### 1. Basic
+
+Uncontrolled mode. Submit on Enter, freeze on submit.
 
 ```tsx
 import { render } from "ink";
@@ -77,18 +80,16 @@ import { TextArea } from "ink-textarea";
 
 const App = () => {
   const [submitted, setSubmitted] = useState("");
-  const [isActive, setIsActive] = useState(true);
-
-  const handleSubmit = (value: string) => {
-    setSubmitted(value);
-    setIsActive(false);
-  };
+  const [focus, setFocus] = useState(true);
 
   return (
     <TextArea
-      isActive={isActive}
-      onSubmit={handleSubmit}
+      focus={focus}
       placeholder="Type your message here..."
+      onSubmit={(value) => {
+        setSubmitted(value);
+        setFocus(false);
+      }}
     />
   );
 };
@@ -96,51 +97,265 @@ const App = () => {
 render(<App />);
 ```
 
-### With Line Prefix
+### 2. Controlled mode with cursor labels
 
-Render line numbers, borders, or any custom prefix before each line:
+Own `value` and `cursorPosition` externally. `onCursorChange` reports the label and chunk index under the cursor — drive a status line, hover-card, or autocomplete from it.
 
 ```tsx
-import { TextArea, LineNumber } from "ink-textarea";
+import { Box, Text } from "ink";
+import { useState } from "react";
+import { TextArea, type TLabels } from "ink-textarea";
+
+const labels: TLabels = [{ pattern: /#\w+/g, label: "tag" }];
+const styles = { tag: { color: "magenta" } };
+
+const Editor = () => {
+  const [value, setValue] = useState("hello #world");
+  const [cursor, setCursor] = useState<[number, number]>([0, 0]);
+  const [info, setInfo] = useState("text");
+
+  return (
+    <Box flexDirection="column">
+      <TextArea
+        focus
+        value={value}
+        cursorPosition={cursor}
+        labels={labels}
+        styles={styles}
+        onChange={setValue}
+        // (pos, labelType, chunkIndex) — labelType is "text" outside any match
+        onCursorChange={(pos, type, idx) => {
+          setCursor(pos);
+          setInfo(type === "text" ? "text" : `${type}#${idx}`);
+        }}
+        onSubmit={() => {}}
+      />
+      <Text dimColor>under cursor: {info}</Text>
+    </Box>
+  );
+};
+```
+
+### 3. Line numbers and active-line highlight
+
+Drop-in: pass the bundled `LineNumberPrefix` straight to `linePrefix`.
+
+```tsx
+import { TextArea, LineNumberPrefix } from "ink-textarea";
 
 <TextArea
-  isActive={true}
-  onSubmit={(value) => console.log(value)}
-  placeholder="Write some code..."
-  highlightActiveLine={true}
-  linePrefix={({ lineNumber, totalLines, isActiveLine }) => (
-    <Text>
-      <Text color="gray">│ </Text>
-      <LineNumber
-        lineNumber={lineNumber}
-        totalLines={totalLines}
-        isActive={isActiveLine}
-      />
-      <Text color="gray"> │ </Text>
-    </Text>
-  )}
+  focus
+  highlightActiveLine
+  activeLineColor="#222"
+  initialLineCount={6}
+  onSubmit={() => {}}
+  linePrefix={LineNumberPrefix}
 />;
 ```
 
-### Line Number Component
-
-The `LineNumber` component is exported for reuse:
+Custom: `linePrefix` is a render prop. Handle `isContinuationLine` and `isVirtualLine` to draw clean gutters when wrapping or padding. Compose with the bundled `LineNumber` for the digits.
 
 ```tsx
-import { LineNumber } from "ink-textarea";
+import { Text } from "ink";
+import { TextArea, LineNumber } from "ink-textarea";
 
-// Active line (highlighted)
-<LineNumber lineNumber={0} totalLines={10} isActive={true} />
+<TextArea
+  focus
+  highlightActiveLine
+  initialLineCount={6}
+  onSubmit={() => {}}
+  linePrefix={({
+    lineNumber,
+    totalLines,
+    isActiveLine,
+    isContinuationLine,
+    isVirtualLine,
+  }) =>
+    isContinuationLine ? (
+      <Text color="gray">  ↳ </Text>
+    ) : (
+      <Text>
+        <LineNumber
+          lineNumber={lineNumber}
+          totalLines={totalLines}
+          isActive={isActiveLine}
+          padChar=" "
+          activeColor="cyan"
+        />
+        <Text color={isVirtualLine ? "gray" : "white"}> │ </Text>
+      </Text>
+    )
+  }
+/>;
+```
 
-// Inactive line
-<LineNumber lineNumber={1} totalLines={10} isActive={false} />
+### 4. Inline syntax highlighting
+
+`labels` mixes regex rules with function-form rules for allowlists. First rule wins on overlap. `styles.text` and `styles.invisibleCharacter` are reserved keys; everything else maps to a label name.
+
+```tsx
+import { useMemo } from "react";
+import { TextArea, type TLabels } from "ink-textarea";
+
+const KNOWN_USERS = new Set(["alice", "bob", "carol"]);
+
+const Editor = () => {
+  const labels = useMemo<TLabels>(
+    () => [
+      { pattern: /https?:\/\/\S+/g, label: "url" },
+      { pattern: /#\w+/g, label: "tag" },
+      // function form: leave unknown @handles unstyled by returning undefined
+      {
+        pattern: /@(\w+)/g,
+        label: (m) => (KNOWN_USERS.has(m[1]) ? "mention" : undefined),
+      },
+    ],
+    [],
+  );
+
+  return (
+    <TextArea
+      focus
+      onSubmit={() => {}}
+      showInvisibles={{ space: false, tab: true, newline: false }}
+      labels={labels}
+      styles={{
+        text: { color: "white" },
+        invisibleCharacter: { color: "gray", dim: true },
+        url: { color: "blue", underline: true },
+        tag: { color: "magenta" },
+        mention: { color: "green", bold: true },
+      }}
+    />
+  );
+};
+```
+
+### 5. Multi-field form with focus chaining
+
+Boundary callbacks let you escape the textarea cleanly: ↑ on the first row jumps to the field above, ↓ past the last line jumps below, and ←/→ at the absolute ends do the same horizontally.
+
+```tsx
+import { Box, useFocusManager, useFocus } from "ink";
+import { useState } from "react";
+import { TextArea } from "ink-textarea";
+import TextInput from "ink-text-input";
+
+const Form = () => {
+  const { focusNext, focusPrevious } = useFocusManager();
+  const subject = useFocus({ id: "subject" });
+  const body = useFocus({ id: "body" });
+  const tags = useFocus({ id: "tags" });
+  const [s, setS] = useState("");
+  const [b, setB] = useState("");
+  const [t, setT] = useState("");
+
+  return (
+    <Box flexDirection="column" gap={1}>
+      <TextInput value={s} onChange={setS} focus={subject.isFocused} />
+      <TextArea
+        focus={body.isFocused}
+        value={b}
+        onChange={setB}
+        onSubmit={() => {}}
+        onFirstLineUp={focusPrevious}
+        onLastLineDown={focusNext}
+        onFirstCharacterLeft={focusPrevious}
+        onLastCharacterRight={focusNext}
+      />
+      <TextInput value={t} onChange={setT} focus={tags.isFocused} />
+    </Box>
+  );
+};
+```
+
+### 6. Slash-command picker (arrow + tab handoff)
+
+When a menu opens, suspend cursor navigation with `disableArrowNavigation` and disable `Enter` so the picker — not the textarea — handles them. Re-enable on close.
+
+```tsx
+import { Box, Text } from "ink";
+import { useState } from "react";
+import { TextArea } from "ink-textarea";
+
+const COMMANDS = ["/help", "/quit", "/train"];
+
+const Composer = () => {
+  const [value, setValue] = useState("");
+  const [sel, setSel] = useState(0);
+  const open = value.startsWith("/");
+
+  return (
+    <Box flexDirection="column">
+      <TextArea
+        focus
+        value={value}
+        onChange={setValue}
+        onSubmit={(v) => {
+          if (!open) console.log(v);
+        }}
+        // While the picker is open, give it the arrows + Enter; typing still flows.
+        disableArrowNavigation={open}
+        keybindings={open ? { Enter: false } : undefined}
+        onTab={(shift) =>
+          setSel((i) => (i + (shift ? -1 : 1) + COMMANDS.length) % COMMANDS.length)
+        }
+      />
+      {open && (
+        <Box flexDirection="column">
+          {COMMANDS.map((c, i) => (
+            <Text key={c} color={i === sel ? "cyan" : undefined}>
+              {i === sel ? "▸ " : "  "}
+              {c}
+            </Text>
+          ))}
+        </Box>
+      )}
+    </Box>
+  );
+};
+```
+
+### 7. Code-editor preset
+
+Override the viewport explicitly, expand tabs, lock down ergonomic chords, and surface the measured content width to a status bar.
+
+```tsx
+import { Box, Text } from "ink";
+import { useState } from "react";
+import { TextArea } from "ink-textarea";
+
+const CodeEditor = () => {
+  const [width, setWidth] = useState(0);
+
+  return (
+    <Box flexDirection="column">
+      <TextArea
+        focus
+        onSubmit={() => {}}
+        viewportLines={20}
+        tabWidth={2}
+        autoNewLineLimit={1}
+        showInvisibles
+        keybindings={{
+          // Single-undo-stack ergonomics: defer undo to the host (e.g. file-level)
+          "Ctrl+Z": false,
+          // Keep Shift+Enter free for the parent's "submit-with-newline" gesture
+          "Shift+Enter": false,
+        }}
+        onDimensions={setWidth}
+      />
+      <Text dimColor>width: {width} cols</Text>
+    </Box>
+  );
+};
 ```
 
 ## Props
 
 | Prop                    | Type                                                                                        | Description                                                                                                                               |
 | ----------------------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `isActive`              | `boolean`                                                                                   | Whether the textarea is focused and receiving keyboard input.                                                                             |
+| `focus`                 | `boolean`                                                                                   | Whether the textarea is focused and receiving keyboard input.                                                                             |
 | `onSubmit`              | `(value: string) => void`                                                                   | Called when the user presses **Enter**. Receives the full text.                                                                           |
 | `placeholder`           | `string`                                                                                    | Placeholder text shown when the textarea is empty.                                                                                        |
 | `linePrefix`            | `ReactNode \| (props: TLinePrefixProps) => ReactNode`                                       | Optional prefix rendered before each line. The function form receives `{ lineNumber, totalLines, isActiveLine, isVirtualLine, isContinuationLine, continuationIndex }`. Use for line numbers, gutters, borders, etc. |
@@ -167,26 +382,8 @@ import { LineNumber } from "ink-textarea";
 | `onTab`                 | `(shift: boolean) => void`                                                                  | Called when Tab is pressed. `shift` is `true` for Shift+Tab. Without this prop, Tab is silently swallowed (no value mutation).            |
 | `onDimensions`          | `(width: number) => void`                                                                   | Called with the measured content width whenever it changes.                                                                               |
 | `showInvisibles`        | `boolean \| { space?: boolean; tab?: boolean; newline?: boolean }`                          | Render whitespace glyphs (`·` for space, `→` for tab, `↵` for newline). Defaults to `false`.                                              |
-| `styles`                | `{ text?, invisibleCharacter?, [labelName]? }` of `TStyleProps`                             | Style overrides for the default text run, invisible glyphs, and any user-defined labels.                                                  |
+| `styles`                | `{ text?, invisibleCharacter?, [labelName]? }` of `TStyleProps`                             | Style overrides for the default text run, invisible glyphs, and any user-defined labels. `color` and `bgColor` accept any value Ink's `<Text>` accepts — see the [Ink color reference](https://github.com/vadimdemedes/ink#color). |
 | `labels`                | `readonly { pattern: RegExp; label: string \| ((match: RegExpMatchArray) => string \| undefined) }[]` | Array of label rules. Each rule's `pattern` is matched against the value; matches receive the rule's `label`. Use a function form to allowlist matches — return `undefined` to leave a match unlabeled. First rule wins on overlap. |
-
-### Controlled Mode
-
-Use controlled mode when you need to manage the textarea state externally:
-
-```tsx
-const [value, setValue] = useState("");
-const [cursor, setCursor] = useState<[number, number]>([0, 0]);
-
-<TextArea
-  isActive={true}
-  value={value}
-  cursorPosition={cursor}
-  onChange={setValue}
-  onCursorChange={(pos) => setCursor(pos)}
-  onSubmit={(val) => console.log(val)}
-/>;
-```
 
 ## Keybindings
 
@@ -219,7 +416,7 @@ Pass a `keybindings` map to disable individual chords. Keys are the chord string
 
 ```tsx
 <TextArea
-  isActive
+  focus
   onSubmit={onSubmit}
   keybindings={{
     "Ctrl+Z": false,      // disable undo
@@ -255,6 +452,95 @@ The full chord catalog (every key is a `TKeybinding`):
 | `Ctrl+Z`         | Undo                              |
 
 `disableArrowNavigation: true` additionally forces all nav chords (`Up`, `Down`, `Left`, `Right`, `Alt+B`, `Alt+F`, `Ctrl+A`, `Ctrl+E`) off regardless of the map.
+
+## Caveats & limitations
+
+Things to know before shipping. Most are intrinsic to running a rich editor inside a terminal.
+
+<details>
+<summary><b>Environment</b></summary>
+
+- **Terminal-only.** Built on Ink — won't render in a browser. Requires Node 18+ for `Intl.Segmenter`. Peer deps: `ink ^7`, `react ^18 || ^19`.
+- **Monospace assumption.** Layout assumes every cell is one column wide and CJK / wide chars take two. Variable-width fonts in some emulators (rare) will break alignment.
+- **Visual width via `string-width`.** Emoji + ZWJ widths follow Unicode tables; some terminals (notably older macOS Terminal, tmux without `set -g escape-time 0`) render the same glyph at a different cell count and produce off-by-one cursor placement.
+
+</details>
+
+<details>
+<summary><b>Keybinding edge cases</b></summary>
+
+- **Modifier+Enter detection is terminal-dependent.** `Ctrl+Enter`, `Shift+Enter`, `Alt+Enter` rely on `modifyOtherKeys` / CSI-u sequences. macOS Terminal.app and Windows console don't emit them by default — use iTerm2, WezTerm, Kitty, or Alacritty, or fall back to `Ctrl+J` for newline.
+- **`Alt` on macOS.** Option key inserts special chars (`Opt+B` → `∫`) unless the terminal is set to "Use Option as Meta" (iTerm2: *Profiles → Keys*; Terminal.app: *Profiles → Keyboard → Use Option as Meta key*).
+- **`Tab` is silently swallowed without `onTab`.** No newline, no insert, no error. Provide the handler if you want any Tab behavior.
+- **`disableArrowNavigation` is not read-only.** Typing still mutates the buffer. Use `focus={false}` for true read-only.
+- **Multiple focused TextAreas race.** Ink's `useInput` delivers keys to every active hook; two textareas with `focus={true}` will both mutate. Gate via `focus` per instance.
+
+</details>
+
+<details>
+<summary><b>Paste & clipboard</b></summary>
+
+- **Bracketed paste required for one-step paste.** Terminals that don't emit `\x1b[200~` (Windows cmd, very old emulators) deliver pastes as individual keystrokes — slow, and each char becomes its own undo step (effectively breaking `Ctrl+Z` for the paste).
+- **No programmatic clipboard.** No copy API; no setter for paste content. Anything the terminal doesn't deliver, the textarea can't see.
+- **No mouse.** Click-to-position, drag-select, scroll wheel — none of it. Cursor moves only via keys.
+
+</details>
+
+<details>
+<summary><b>Selection & search</b></summary>
+
+- **No selection.** Point cursor only. No range, no shift+arrow extension, no copy of a range.
+- **No find/replace.** Build it on top via controlled mode if you need it.
+
+</details>
+
+<details>
+<summary><b>Undo</b></summary>
+
+- **Time-grouped, not semantic.** Edits within `undoGroupDelay` (default 2.5 s) collapse into one step. On a slow machine the boundary may land mid-word.
+- **Bounded by `maxUndo`** (default 128). Older history is dropped silently.
+- **No redo.** `Ctrl+Y` / `Ctrl+Shift+Z` are not bound. Add yourself if needed.
+
+</details>
+
+<details>
+<summary><b>Labels & styles</b></summary>
+
+- **Regex runs on every value change.** O(value × rules). Heavy patterns on 100k+ char buffers will lag — debounce externally or scope rules.
+- **Flat ranges, no nesting.** A label can't contain another label. First rule wins on overlap; later rules silently lose.
+- **Function-form `undefined` ≠ "fall through".** Returning `undefined` leaves the match unlabeled (renders with `text` style). It does not let the next rule try.
+- **`color` / `bgColor` strings are passed straight to Ink's `<Text>`.** Invalid values fail silently — the terminal renders default. See the [Ink color reference](https://github.com/vadimdemedes/ink#color).
+
+</details>
+
+<details>
+<summary><b>Performance</b></summary>
+
+- **Cursor blink causes re-renders every `cursorInterval` ms (default 500).** Tall frames + slow terminals can flicker. Bump `cursorInterval` or set it high to effectively disable.
+- **`viewportLines` defaults to `floor(stdout.rows * 0.5)`.** Without virtualization, frames taller than the terminal trigger scroll-jank on every blink. The default trades render area for stability — override explicitly if you have height to spare.
+- **Visual-row recompute is O(value)** per keystroke. Acceptable for chat/comment buffers; pathological for full-file editing of large source files.
+- **Resize listener is global.** Every TextArea instance subscribes to `stdout.resize`. Dozens of simultaneous instances will fan out resize events.
+
+</details>
+
+<details>
+<summary><b>Data model</b></summary>
+
+- **CRLF/CR normalized to LF on paste and controlled values.** `onChange` always reports LF. If your storage layer needs CRLF, convert on save.
+- **`value.length` ≠ visual length.** Tabs count as 1 char regardless of `tabWidth`; emoji count as their UTF-16 code-unit length, not 1 grapheme. Use `Intl.Segmenter` if you need grapheme counts externally.
+- **Out-of-bounds `cursorPosition` is clamped silently.** No throw, no warning — `onCursorChange` reports the clamped value.
+- **Boundary callbacks fire on exact bounds only.** `onFirstLineUp` only fires when the cursor is *on* row 0 and ↑ is pressed; not "the cursor moved past the top." Same for the other three.
+- **`onSubmit` is sync.** No promise return contract — coordinate async validation in your parent component.
+
+</details>
+
+<details>
+<summary><b>Virtualization gotchas</b></summary>
+
+- **Rows outside `viewportLines` are not rendered.** Any consumer-side measurement on hidden rows (`useBoxMetrics`, refs in `linePrefix`) won't fire until the row scrolls in.
+- **Wrapping happens at the measured content width.** Constrain via a parent `<Box width={...}>` to wrap at a fixed column; otherwise wraps at `stdout.columns`.
+
+</details>
 
 ## Development
 

@@ -6,7 +6,7 @@ describe("TextArea > Placeholder multiline", () => {
   it("renders each line of a multiline placeholder", () => {
     const { lastFrame } = render(
       <TextArea
-        isActive={false}
+        focus={false}
         onSubmit={() => {}}
         placeholder={"line one\nline two"}
         initialLineCount={2}
@@ -21,7 +21,7 @@ describe("TextArea > Placeholder multiline", () => {
   it("placeholder disappears when text is typed", async () => {
     const { stdin, lastFrame } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         placeholder="Type here..."
       />,

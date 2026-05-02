@@ -13,3 +13,5 @@ export type {
 } from "./types.js";
 export { LineNumber } from "./LineNumber.js";
 export type { LineNumberProps } from "./LineNumber.js";
+export { LineNumberPrefix } from "./LineNumberPrefix.js";
+export type { LineNumberPrefixProps } from "./LineNumberPrefix.js";

@@ -29,7 +29,7 @@ const ControlledHost = ({
   const [cursor, setCursor] = useState<[number, number]>([0, 0]);
   return (
     <TextArea
-      isActive={true}
+      focus={true}
       onSubmit={() => {}}
       value={value}
       cursorPosition={cursor}
@@ -46,7 +46,7 @@ describe("TextArea > viewport virtualization", () => {
     const value = Array.from({ length: 6 }, (_, i) => `line${i}`).join("\n");
     const { lastFrame } = render(
       <TextArea
-        isActive={false}
+        focus={false}
         onSubmit={() => {}}
         value={value}
         cursorPosition={[0, 0]}
@@ -64,7 +64,7 @@ describe("TextArea > viewport virtualization", () => {
     const value = Array.from({ length: 20 }, (_, i) => `row${i}`).join("\n");
     const { lastFrame } = render(
       <TextArea
-        isActive={false}
+        focus={false}
         onSubmit={() => {}}
         value={value}
         cursorPosition={[0, 0]}
@@ -123,7 +123,7 @@ describe("TextArea > viewport virtualization", () => {
     const value = Array.from({ length: 5 }, (_, i) => `r${i}`).join("\n");
     const { lastFrame } = render(
       <TextArea
-        isActive={false}
+        focus={false}
         onSubmit={() => {}}
         value={value}
         cursorPosition={[0, 0]}
@@ -175,7 +175,7 @@ describe("TextArea > viewport virtualization", () => {
   it("does not exceed viewportLines visible rows after typing many newlines", async () => {
     const { stdin, lastFrame } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         viewportLines={3}
       />,
@@ -203,7 +203,7 @@ describe("TextArea > viewport virtualization", () => {
     const value = "a\nb\nc";
     const { lastFrame } = render(
       <TextArea
-        isActive={false}
+        focus={false}
         onSubmit={() => {}}
         value={value}
         cursorPosition={[0, 0]}

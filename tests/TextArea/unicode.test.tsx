@@ -7,7 +7,7 @@ describe("TextArea > unicode (graphemes)", () => {
     const onChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         value={"a🇯🇵"}
         cursorPosition={[0, 5]}
@@ -29,7 +29,7 @@ describe("TextArea > unicode (graphemes)", () => {
     const family = "👨‍👩‍👧"; // length 8
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         value={"x" + family}
         cursorPosition={[0, 1 + family.length]}
@@ -50,7 +50,7 @@ describe("TextArea > unicode (graphemes)", () => {
     const onCursorChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         value={"🚀x"}
         cursorPosition={[0, 0]}
@@ -77,7 +77,7 @@ describe("TextArea > unicode (graphemes)", () => {
     const onCursorChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         value={"🚀x"}
         cursorPosition={[0, 2]}
@@ -109,7 +109,7 @@ describe("TextArea > tab visual expansion", () => {
   it("renders tab as tabWidth spaces by default (4)", async () => {
     const { lastFrame } = render(
       <TextArea
-        isActive={false}
+        focus={false}
         onSubmit={() => {}}
         value={"\thi"}
         cursorPosition={[0, 0]}
@@ -124,7 +124,7 @@ describe("TextArea > tab visual expansion", () => {
   it("honors tabWidth=2", async () => {
     const { lastFrame } = render(
       <TextArea
-        isActive={false}
+        focus={false}
         onSubmit={() => {}}
         value={"\thi"}
         cursorPosition={[0, 0]}
@@ -141,7 +141,7 @@ describe("TextArea > tab visual expansion", () => {
   it("renders → glyph + spaces when showInvisibles.tab is on", async () => {
     const { lastFrame } = render(
       <TextArea
-        isActive={false}
+        focus={false}
         onSubmit={() => {}}
         value={"\thi"}
         cursorPosition={[0, 0]}

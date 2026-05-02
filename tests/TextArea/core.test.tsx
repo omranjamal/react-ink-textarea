@@ -8,7 +8,7 @@ describe("TextArea", () => {
   it("renders placeholder when empty and inactive", () => {
     const { lastFrame } = render(
       <TextArea
-        isActive={false}
+        focus={false}
         onSubmit={() => {}}
         placeholder="Type here..."
       />,
@@ -20,7 +20,7 @@ describe("TextArea", () => {
   it("renders cursor when active and empty", () => {
     const { lastFrame } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         placeholder="Type here..."
       />,
@@ -33,7 +33,7 @@ describe("TextArea", () => {
   it("types characters when active", async () => {
     const onSubmit = vi.fn();
     const { stdin, lastFrame } = render(
-      <TextArea isActive={true} onSubmit={onSubmit} />,
+      <TextArea focus={true} onSubmit={onSubmit} />,
     );
 
     stdin.write("hello");
@@ -44,7 +44,7 @@ describe("TextArea", () => {
 
   it("submits on Enter", async () => {
     const onSubmit = vi.fn();
-    const { stdin } = render(<TextArea isActive={true} onSubmit={onSubmit} />);
+    const { stdin } = render(<TextArea focus={true} onSubmit={onSubmit} />);
 
     stdin.write("test value");
     await new Promise((resolve) => setTimeout(resolve, 50));
@@ -57,7 +57,7 @@ describe("TextArea", () => {
 
   it("inserts newline on Ctrl+J", async () => {
     const { stdin, lastFrame } = render(
-      <TextArea isActive={true} onSubmit={() => {}} />,
+      <TextArea focus={true} onSubmit={() => {}} />,
     );
 
     stdin.write("line1");
@@ -76,7 +76,7 @@ describe("TextArea", () => {
 
   it("supports backspace", async () => {
     const { stdin, lastFrame } = render(
-      <TextArea isActive={true} onSubmit={() => {}} />,
+      <TextArea focus={true} onSubmit={() => {}} />,
     );
 
     stdin.write("hello");
@@ -91,7 +91,7 @@ describe("TextArea", () => {
 
   it("does not accept input when inactive", () => {
     const { stdin, lastFrame } = render(
-      <TextArea isActive={false} onSubmit={() => {}} />,
+      <TextArea focus={false} onSubmit={() => {}} />,
     );
 
     const before = lastFrame();
@@ -104,7 +104,7 @@ describe("TextArea", () => {
   it("renders line prefix when typing", async () => {
     const { stdin, lastFrame } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         linePrefix={({ lineNumber }) => (
           <Text color="green">{`>${lineNumber + 1}< `}</Text>
@@ -123,7 +123,7 @@ describe("TextArea", () => {
   it("passes props object to linePrefix function", async () => {
     const linePrefix = vi.fn((_props: TLinePrefixProps) => <Text>{"> "}</Text>);
     const { stdin } = render(
-      <TextArea isActive={true} onSubmit={() => {}} linePrefix={linePrefix} />,
+      <TextArea focus={true} onSubmit={() => {}} linePrefix={linePrefix} />,
     );
 
     stdin.write("hello");
@@ -142,7 +142,7 @@ describe("TextArea", () => {
   it("highlights active line when highlightActiveLine is enabled", async () => {
     const { stdin, lastFrame } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         highlightActiveLine={true}
         activeLineColor="cyan"

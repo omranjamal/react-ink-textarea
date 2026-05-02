@@ -6,7 +6,7 @@ describe("TextArea > Submit edge cases", () => {
   it("Enter with empty text calls onSubmit with empty string", async () => {
     const onSubmit = vi.fn();
     const { stdin } = render(
-      <TextArea isActive={true} onSubmit={onSubmit} />,
+      <TextArea focus={true} onSubmit={onSubmit} />,
     );
 
     stdin.write("\r");
@@ -18,7 +18,7 @@ describe("TextArea > Submit edge cases", () => {
   it("Enter with multiline text passes full value including newlines", async () => {
     const onSubmit = vi.fn();
     const { stdin } = render(
-      <TextArea isActive={true} onSubmit={onSubmit} />,
+      <TextArea focus={true} onSubmit={onSubmit} />,
     );
 
     stdin.write("line1");
@@ -39,7 +39,7 @@ describe("TextArea > autoNewLineLimit edge cases", () => {
     const onLastLineDown = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         autoNewLineLimit={0}
         onLastLineDown={onLastLineDown}
@@ -56,7 +56,7 @@ describe("TextArea > autoNewLineLimit edge cases", () => {
     const onLastLineDown = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         autoNewLineLimit={1}
         onLastLineDown={onLastLineDown}

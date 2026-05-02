@@ -8,7 +8,7 @@ describe("TextArea > Navigation Lock", () => {
     const onCursorChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         value="hello"
         cursorPosition={[0, 0]}
@@ -32,7 +32,7 @@ describe("TextArea > Navigation Lock", () => {
     const onCursorChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         value="hello"
         cursorPosition={[0, 0]}
@@ -52,7 +52,7 @@ describe("TextArea > Navigation Lock", () => {
     const onChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         value=""
         onChange={onChange}
@@ -70,7 +70,7 @@ describe("TextArea > Navigation Lock", () => {
     const onChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         value="line1"
         cursorPosition={[0, 5]}
@@ -89,7 +89,7 @@ describe("TextArea > Navigation Lock", () => {
     const onCursorChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         value="hello\nworld"
         cursorPosition={[1, 0]}
@@ -120,7 +120,7 @@ describe("TextArea > Boundary Navigation Handlers", () => {
     const onFirstLineUp = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         value="hello"
         cursorPosition={[0, 3]}
@@ -139,7 +139,7 @@ describe("TextArea > Boundary Navigation Handlers", () => {
     const onLastLineDown = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         placeholder="Type here..."
         onLastLineDown={onLastLineDown}
@@ -167,7 +167,7 @@ describe("TextArea > Boundary Navigation Handlers", () => {
     const onCursorChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         value="line1\nline2"
         cursorPosition={[1, 2]}
@@ -186,7 +186,7 @@ describe("TextArea > Boundary Navigation Handlers", () => {
     const onCursorChange = vi.fn();
     const { stdin } = render(
       <TextArea
-        isActive={true}
+        focus={true}
         onSubmit={() => {}}
         value="line1\nline2"
         cursorPosition={[0, 2]}

@@ -207,7 +207,7 @@ const renderRowBody = ({
 };
 
 export const TextArea = ({
-  isActive,
+  focus: isActive,
   onSubmit,
   placeholder,
   linePrefix,

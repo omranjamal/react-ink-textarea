@@ -68,7 +68,7 @@ export type TKeybinding =
 export type TKeybindings = Partial<Readonly<Record<TKeybinding, boolean>>>;
 
 export type TextAreaProps = {
-  readonly isActive: boolean;
+  readonly focus: boolean;
   readonly onSubmit: (value: string) => void;
   readonly placeholder?: string;
   readonly linePrefix?: ReactNode | TLinePrefixFn;
