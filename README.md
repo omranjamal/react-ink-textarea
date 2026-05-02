@@ -54,7 +54,7 @@ Build rich CLI forms with a full-featured textarea that supports multi-line edit
   - Exports: `TextAreaProps`, `TLinePrefixProps`, `TLinePrefixFn`, `TShowInvisibles`, `TStyleProps`, `TStyles`, `TLabels`, `TLabelRule`, `TLabelFn`, `LineNumberProps`.
   - Render-prop and label-fn signatures fully inferred.
 - 🧪 **Testable**
-  - Works with [`ink-testing-library`](https://github.com/vadimdemedes/ink-testing-library); 230+ tests in-repo as a pattern bank.
+  - Works with [`ink-testing-library`](https://github.com/vadimdemedes/ink-testing-library); 250+ tests in-repo as a pattern bank.
 
 ## Install
 
@@ -108,7 +108,7 @@ import { TextArea, LineNumber } from "ink-textarea";
   onSubmit={(value) => console.log(value)}
   placeholder="Write some code..."
   highlightActiveLine={true}
-  linePrefix={(lineNumber, totalLines, isActiveLine) => (
+  linePrefix={({ lineNumber, totalLines, isActiveLine }) => (
     <Text>
       <Text color="gray">│ </Text>
       <LineNumber
@@ -143,7 +143,7 @@ import { LineNumber } from "ink-textarea";
 | `isActive`              | `boolean`                                                                                   | Whether the textarea is focused and receiving keyboard input.                                                                             |
 | `onSubmit`              | `(value: string) => void`                                                                   | Called when the user presses **Enter**. Receives the full text.                                                                           |
 | `placeholder`           | `string`                                                                                    | Placeholder text shown when the textarea is empty.                                                                                        |
-| `linePrefix`            | `ReactNode \| (lineNumber: number, totalLines: number, isActiveLine: boolean) => ReactNode` | Optional prefix rendered before each line. Use for line numbers, gutters, borders, etc. Receives `isActiveLine` to highlight active line. |
+| `linePrefix`            | `ReactNode \| (props: TLinePrefixProps) => ReactNode`                                       | Optional prefix rendered before each line. The function form receives `{ lineNumber, totalLines, isActiveLine, isVirtualLine, isContinuationLine, continuationIndex }`. Use for line numbers, gutters, borders, etc. |
 | `highlightActiveLine`   | `boolean`                                                                                   | When `true`, the active line is highlighted with a subtle background color. Defaults to `false`.                                          |
 | `activeLineColor`       | `string`                                                                                    | Background color for the active line highlight. Defaults to no color.                                                                     |
 | `cursorInterval`        | `number`                                                                                    | Cursor blink interval in milliseconds. Defaults to `500`.                                                                                 |
@@ -154,7 +154,7 @@ import { LineNumber } from "ink-textarea";
 | `disableArrowNavigation` | `boolean`                                                                                  | When `true`, disables cursor movement via arrow keys (and word/line jumps). Useful for implementing suggestion pickers. Defaults to `false`.                    |
 | `keybindings`           | `Partial<Record<TKeybinding, boolean>>`                                                     | Per-chord enable/disable map. Merged over defaults (all `true`). Set a chord to `false` to swallow it. `disableArrowNavigation: true` additionally forces all nav chords off. See **Keybinding Toggles** below.        |
 | `initialLineCount`      | `number`                                                                                    | Number of lines to display initially. The textarea will maintain at least this many lines. Defaults to `2`.                               |
-| `viewportLines`         | `number`                                                                                    | Maximum number of visual rows rendered at once. When set, the textarea virtualizes rendering and auto-scrolls to keep the cursor visible. Defaults to no cap (renders every row). |
+| `viewportLines`         | `number`                                                                                    | Maximum number of visual rows rendered at once. The textarea virtualizes rendering and auto-scrolls to keep the cursor visible. Defaults to `floor(stdout.rows * 0.5)` so blink re-renders don't scroll-jank tall buffers when the frame exceeds the terminal viewport. Pass an explicit number to override; `Infinity` renders every row. |
 | `tabWidth`              | `number`                                                                                    | Visual width of `\t` characters in cells. Tabs render as `tabWidth` spaces (or `→` + spaces with `showInvisibles.tab`). The stored value keeps `\t`. Defaults to `4`. |
 | `value`                 | `string`                                                                                    | **Controlled mode**: The current value of the textarea. When provided, component operates in controlled mode.                             |
 | `cursorPosition`        | `[line: number, column: number]`                                                            | **Controlled mode**: The current cursor position as a `[line, column]` tuple. Use with `value` for full control.                          |
@@ -207,6 +207,7 @@ const [cursor, setCursor] = useState<[number, number]>([0, 0]);
 | `Ctrl+U`        | Delete to start of line        |
 | `Ctrl+K`        | Delete to end of line          |
 | `Backspace`     | Delete character before cursor |
+| `Delete`        | Delete character before cursor (same as `Backspace`) |
 | `Opt+Backspace` | Delete word before cursor      |
 | `Ctrl+Z`        | Undo (up to 128 steps)         |
 
@@ -236,7 +237,7 @@ The full chord catalog (every key is a `TKeybinding`):
 | `Ctrl+J`         | Insert newline                    |
 | `Ctrl+Enter`     | Insert newline                    |
 | `Shift+Enter`    | Insert newline                    |
-| `Alt+Enter`     | Insert newline                    |
+| `Alt+Enter`      | Insert newline                    |
 | `Up`             | Cursor up                         |
 | `Down`           | Cursor down                       |
 | `Left`           | Cursor left                       |
