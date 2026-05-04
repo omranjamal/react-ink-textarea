@@ -1,4 +1,4 @@
-# ink-textarea
+# react-ink-textarea
 > A multiline textarea component for [Ink](https://github.com/vadimdemedes/ink)
 
 Build rich CLI forms with a full-featured textarea that supports multi-line editing, cursor navigation, undo, and customizable line prefixes.
@@ -42,11 +42,9 @@ Build rich CLI forms with a full-featured textarea that supports multi-line edit
 ## Install
 
 ```bash
-npm install ink-textarea
+npm install react-ink-textarea
 # or
-yarn add ink-textarea
-# or
-pnpm add ink-textarea
+pnpm add react-ink-textarea
 ```
 
 ## Usage
@@ -58,7 +56,7 @@ Uncontrolled mode. Submit on Enter, freeze on submit.
 ```tsx
 import { render } from "ink";
 import { useState } from "react";
-import { TextArea } from "ink-textarea";
+import { TextArea } from "react-ink-textarea";
 
 const App = () => {
   const [submitted, setSubmitted] = useState("");
@@ -86,7 +84,7 @@ Own `value` and `cursorPosition` externally. `onCursorChange` reports the label 
 ```tsx
 import { Box, Text } from "ink";
 import { useState } from "react";
-import { TextArea, type TLabels } from "ink-textarea";
+import { TextArea, type TLabels } from "react-ink-textarea";
 
 const labels: TLabels = [{ pattern: /#\w+/g, label: "tag" }];
 const styles = { tag: { color: "magenta" } };
@@ -123,7 +121,7 @@ const Editor = () => {
 Drop-in: pass the bundled `LineNumberPrefix` straight to `linePrefix`.
 
 ```tsx
-import { TextArea, LineNumberPrefix } from "ink-textarea";
+import { TextArea, LineNumberPrefix } from "react-ink-textarea";
 
 <TextArea
   focus
@@ -139,7 +137,7 @@ Custom: `linePrefix` is a render prop. Handle `isContinuationLine` and `isVirtua
 
 ```tsx
 import { Text } from "ink";
-import { TextArea, LineNumber } from "ink-textarea";
+import { TextArea, LineNumber } from "react-ink-textarea";
 
 <TextArea
   focus
@@ -177,7 +175,7 @@ import { TextArea, LineNumber } from "ink-textarea";
 
 ```tsx
 import { useMemo } from "react";
-import { TextArea, type TLabels } from "ink-textarea";
+import { TextArea, type TLabels } from "react-ink-textarea";
 
 const KNOWN_USERS = new Set(["alice", "bob", "carol"]);
 
@@ -220,7 +218,7 @@ Boundary callbacks let you escape the textarea cleanly: ↑ on the first row jum
 ```tsx
 import { Box, useFocusManager, useFocus } from "ink";
 import { useState } from "react";
-import { TextArea } from "ink-textarea";
+import { TextArea } from "react-ink-textarea";
 import TextInput from "ink-text-input";
 
 const Form = () => {
@@ -258,7 +256,7 @@ When a menu opens, suspend cursor navigation with `disableArrowNavigation` and d
 ```tsx
 import { Box, Text } from "ink";
 import { useState } from "react";
-import { TextArea } from "ink-textarea";
+import { TextArea } from "react-ink-textarea";
 
 const COMMANDS = ["/help", "/quit", "/train"];
 
@@ -305,7 +303,7 @@ Override the viewport explicitly, expand tabs, lock down ergonomic chords, and s
 ```tsx
 import { Box, Text } from "ink";
 import { useState } from "react";
-import { TextArea } from "ink-textarea";
+import { TextArea } from "react-ink-textarea";
 
 const CodeEditor = () => {
   const [width, setWidth] = useState(0);
@@ -373,7 +371,7 @@ Pass a `ref` of type `TextAreaHandle` to insert text programmatically — typica
 
 ```tsx
 import { useRef } from "react";
-import { TextArea, type TextAreaHandle } from "ink-textarea";
+import { TextArea, type TextAreaHandle } from "react-ink-textarea";
 
 const Composer = () => {
   const ref = useRef<TextAreaHandle>(null);

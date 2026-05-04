@@ -13,7 +13,7 @@ import {
   type TLabels,
   type TextAreaProps,
   type TextAreaHandle,
-} from "ink-textarea";
+} from "react-ink-textarea";
 
 const SLASH_COMMANDS = [
   "/train",

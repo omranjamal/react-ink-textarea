@@ -48,12 +48,12 @@ importers:
       ink:
         specifier: ^7.0.1
         version: 7.0.1(@types/react@19.2.14)(react@19.2.5)
-      ink-textarea:
-        specifier: workspace:*
-        version: link:..
       react:
         specifier: ^19.2.5
         version: 19.2.5
+      react-ink-textarea:
+        specifier: workspace:*
+        version: link:..
     devDependencies:
       '@types/react':
         specifier: ^19.2.14

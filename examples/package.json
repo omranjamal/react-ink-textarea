@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "ink": "^7.0.1",
-    "ink-textarea": "workspace:*",
+    "react-ink-textarea": "workspace:*",
     "react": "^19.2.5"
   },
   "devDependencies": {
