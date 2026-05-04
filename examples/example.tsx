@@ -59,12 +59,19 @@ const getSlashWordAtCursor = (
   return { word: lineText.slice(start, end), lineIdx: line, start, end };
 };
 
+const MARGIN_MIN = 2;
+const MARGIN_MAX = 20;
+const MARGIN_STEP = 2;
+const MARGIN_DEFAULT = 12;
+
 type DemoBoxProps = {
   readonly title: string;
   readonly active: boolean;
   readonly hideStatusline?: boolean;
   readonly textAreaProps: Omit<TextAreaProps, "focus" | "onDimensions">;
   readonly ref?: Ref<TextAreaHandle>;
+  readonly marginLeft: number;
+  readonly onMarginShift: (delta: number) => void;
 };
 
 const DemoBox = ({
@@ -73,6 +80,8 @@ const DemoBox = ({
   hideStatusline,
   textAreaProps,
   ref,
+  marginLeft,
+  onMarginShift,
 }: DemoBoxProps): ReactNode => {
   const [charCount, setCharCount] = useState(0);
   const [cursorPos, setCursorPos] = useState<[number, number]>([0, 0]);
@@ -96,6 +105,7 @@ const DemoBox = ({
         borderStyle="single"
         paddingY={1}
         paddingX={3}
+        marginLeft={marginLeft}
         borderDimColor
         borderColor={active ? "cyan" : "gray"}
       >
@@ -129,28 +139,32 @@ const DemoBox = ({
           }}
           onFirstCharacterLeft={() => {
             flashBoundary("←");
+            onMarginShift(-MARGIN_STEP);
             textAreaProps.onFirstCharacterLeft?.();
           }}
           onLastCharacterRight={() => {
             flashBoundary("→");
+            onMarginShift(MARGIN_STEP);
             textAreaProps.onLastCharacterRight?.();
           }}
         />
       </Box>
-      <Box paddingX={2} flexDirection="row" gap={2} height={1}>
-        {active && !hideStatusline ? (
-          <Text>
-            {charCount} chars | Line {cursorPos[0] + 1}, Col {cursorPos[1] + 1}{" "}
-            | CURRENT={chunkType} ({chunkIdx}) | W={lineWidth}
-            {boundary ? (
-              <Text color="cyan" bold>
-                {" | "}
-                {boundary}
-              </Text>
-            ) : null}
-          </Text>
-        ) : null}
-      </Box>
+      {hideStatusline ? null : (
+        <Box paddingX={2} marginLeft={marginLeft} flexDirection="row" gap={2} height={1}>
+          {active ? (
+            <Text>
+              {charCount} chars | Line {cursorPos[0] + 1}, Col {cursorPos[1] + 1}{" "}
+              | CURRENT={chunkType} ({chunkIdx}) | W={lineWidth}
+              {boundary ? (
+                <Text color="cyan" bold>
+                  {" | "}
+                  {boundary}
+                </Text>
+              ) : null}
+            </Text>
+          ) : null}
+        </Box>
+      )}
     </Box>
   );
 };
@@ -168,7 +182,16 @@ const App = () => {
   const [box1Value, setBox1Value] = useState<string>(HISTORY[1]!);
   const [box1Cursor, setBox1Cursor] = useState<[number, number]>([0, 0]);
   const [pickerSelection, setPickerSelection] = useState(0);
+  const [box1Margin, setBox1Margin] = useState(MARGIN_DEFAULT);
+  const [box2Margin, setBox2Margin] = useState(MARGIN_DEFAULT);
   const box1Ref = useRef<TextAreaHandle>(null);
+
+  const shiftMargin = (
+    setter: (updater: (prev: number) => number) => void,
+    delta: number,
+  ) => {
+    setter((m) => Math.min(MARGIN_MAX, Math.max(MARGIN_MIN, m + delta)));
+  };
 
   const slashCtx = useMemo(
     () => getSlashWordAtCursor(box1Value, box1Cursor[0], box1Cursor[1]),
@@ -257,6 +280,8 @@ const App = () => {
         active={activeBox === 0}
         hideStatusline={pickerOpen}
         ref={box1Ref}
+        marginLeft={box1Margin}
+        onMarginShift={(d) => shiftMargin(setBox1Margin, d)}
         textAreaProps={{
           onSubmit: setSubmitted,
           placeholder: PLACEHOLDER,
@@ -278,7 +303,7 @@ const App = () => {
       />
 
       {pickerOpen ? (
-        <Box paddingX={2} flexDirection="column">
+        <Box paddingLeft={8} paddingRight={2} marginLeft={box1Margin} marginTop={-1} flexDirection="column">
           {visiblePickerItems.map((cmd, i) => (
             <Text key={cmd}>
               <Text color={i === pickerSelection ? "cyan" : undefined}>
@@ -298,6 +323,8 @@ const App = () => {
         <DemoBox
           title="DEMO 2"
           active={activeBox === 1}
+          marginLeft={box2Margin}
+          onMarginShift={(d) => shiftMargin(setBox2Margin, d)}
           textAreaProps={{
             onSubmit: setSubmitted,
             placeholder: "Second textarea — Tab cycles back.",
