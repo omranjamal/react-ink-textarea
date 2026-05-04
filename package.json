@@ -29,7 +29,11 @@
     "input",
     "terminal"
   ],
-  "author": "Omran Jamal",
+  "author": {
+    "name": "Omran Jamal",
+    "email": "omran@omranjamal.me",
+    "url": "https://omranjamal.me"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",
