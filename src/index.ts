@@ -1,6 +1,7 @@
 export { TextArea } from "./TextArea.js";
 export type {
   TextAreaProps,
+  TextAreaHandle,
   TLinePrefixProps,
   TShowInvisibles,
   TStyleProps,

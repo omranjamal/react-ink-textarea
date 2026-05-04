@@ -1,13 +1,28 @@
-import { render, Box, Text } from "ink";
-import { useState, useMemo, useRef, type ReactNode } from "react";
+import { render, Box, Text, useInput } from "ink";
+import {
+  useState,
+  useMemo,
+  useRef,
+  useEffect,
+  type ReactNode,
+  type Ref,
+} from "react";
 import {
   TextArea,
   LineNumberPrefix,
   type TLabels,
   type TextAreaProps,
+  type TextAreaHandle,
 } from "ink-textarea";
 
-const SLASH_COMMANDS = new Set(["/train", "/track", "/transfer", "/transact", "/help", "/quit"]);
+const SLASH_COMMANDS = [
+  "/train",
+  "/track",
+  "/transfer",
+  "/transact",
+  "/help",
+  "/quit",
+];
 
 const PLACEHOLDER = `
 It obviously supports multi-line
@@ -15,25 +30,50 @@ placeholders.
 
 With highlighting too like: /help
 or: @john
-`.trim()
+`.trim();
+
+const subsequenceMatches = (query: string, target: string): boolean => {
+  if (query === "") return true;
+  const q = query.toLowerCase();
+  const t = target.toLowerCase();
+  let i = 0;
+  for (let j = 0; j < t.length && i < q.length; j++) {
+    if (t[j] === q[i]) i++;
+  }
+  return i === q.length;
+};
+
+const getSlashWordAtCursor = (
+  value: string,
+  line: number,
+  col: number,
+): { word: string; lineIdx: number; start: number; end: number } | null => {
+  const lines = value.split("\n");
+  const lineText = lines[line] ?? "";
+  let start = col;
+  while (start > 0 && /[a-zA-Z]/.test(lineText[start - 1]!)) start--;
+  if (start === 0 || lineText[start - 1] !== "/") return null;
+  start -= 1;
+  let end = col;
+  while (end < lineText.length && /[a-zA-Z]/.test(lineText[end]!)) end++;
+  return { word: lineText.slice(start, end), lineIdx: line, start, end };
+};
 
 type DemoBoxProps = {
   readonly title: string;
   readonly active: boolean;
-  readonly textAreaProps: Omit<
-    TextAreaProps,
-    | "focus"
-    | "onChange"
-    | "onCursorChange"
-    | "onDimensions"
-    | "onFirstLineUp"
-    | "onLastLineDown"
-    | "onFirstCharacterLeft"
-    | "onLastCharacterRight"
-  >;
+  readonly hideStatusline?: boolean;
+  readonly textAreaProps: Omit<TextAreaProps, "focus" | "onDimensions">;
+  readonly ref?: Ref<TextAreaHandle>;
 };
 
-const DemoBox = ({ title, active, textAreaProps }: DemoBoxProps): ReactNode => {
+const DemoBox = ({
+  title,
+  active,
+  hideStatusline,
+  textAreaProps,
+  ref,
+}: DemoBoxProps): ReactNode => {
   const [charCount, setCharCount] = useState(0);
   const [cursorPos, setCursorPos] = useState<[number, number]>([0, 0]);
   const [lineWidth, setLineWidth] = useState(0);
@@ -65,23 +105,40 @@ const DemoBox = ({ title, active, textAreaProps }: DemoBoxProps): ReactNode => {
           </Text>
         </Box>
         <TextArea
+          ref={ref}
           {...textAreaProps}
           focus={active}
-          onChange={(value) => setCharCount(value.length)}
+          onChange={(value) => {
+            setCharCount(value.length);
+            textAreaProps.onChange?.(value);
+          }}
           onCursorChange={(pos, type, idx) => {
             setCursorPos(pos);
             setChunkType(type);
             setChunkIdx(idx);
+            textAreaProps.onCursorChange?.(pos, type, idx);
           }}
           onDimensions={setLineWidth}
-          onFirstLineUp={() => flashBoundary("↑")}
-          onLastLineDown={() => flashBoundary("↓")}
-          onFirstCharacterLeft={() => flashBoundary("←")}
-          onLastCharacterRight={() => flashBoundary("→")}
+          onFirstLineUp={() => {
+            flashBoundary("↑");
+            textAreaProps.onFirstLineUp?.();
+          }}
+          onLastLineDown={() => {
+            flashBoundary("↓");
+            textAreaProps.onLastLineDown?.();
+          }}
+          onFirstCharacterLeft={() => {
+            flashBoundary("←");
+            textAreaProps.onFirstCharacterLeft?.();
+          }}
+          onLastCharacterRight={() => {
+            flashBoundary("→");
+            textAreaProps.onLastCharacterRight?.();
+          }}
         />
       </Box>
       <Box paddingX={2} flexDirection="row" gap={2} height={1}>
-        {active ? (
+        {active && !hideStatusline ? (
           <Text>
             {charCount} chars | Line {cursorPos[0] + 1}, Col {cursorPos[1] + 1}{" "}
             | CURRENT={chunkType} ({chunkIdx}) | W={lineWidth}
@@ -98,20 +155,86 @@ const DemoBox = ({ title, active, textAreaProps }: DemoBoxProps): ReactNode => {
   );
 };
 
+const HISTORY = [
+  "detect up arrow from first line",
+  "",
+  "or detect down arrow on last line",
+];
+
 const App = () => {
   const [, setSubmitted] = useState("");
   const [activeBox, setActiveBox] = useState<0 | 1>(0);
+  const [, setHistoryIdx] = useState<number>(1);
+  const [box1Value, setBox1Value] = useState<string>(HISTORY[1]!);
+  const [box1Cursor, setBox1Cursor] = useState<[number, number]>([0, 0]);
+  const [pickerSelection, setPickerSelection] = useState(0);
+  const box1Ref = useRef<TextAreaHandle>(null);
+
+  const slashCtx = useMemo(
+    () => getSlashWordAtCursor(box1Value, box1Cursor[0], box1Cursor[1]),
+    [box1Value, box1Cursor],
+  );
+
+  const slashQuery = slashCtx ? slashCtx.word.slice(1) : "";
+  const slashMatches = useMemo(() => {
+    if (!slashCtx) return [] as string[];
+    return SLASH_COMMANDS.filter((cmd) =>
+      subsequenceMatches(slashQuery, cmd.slice(1)),
+    );
+  }, [slashCtx, slashQuery]);
+
+  const pickerOpen =
+    activeBox === 0 && slashCtx !== null && slashMatches.length > 0;
+  const visiblePickerItems = slashMatches.slice(0, 3);
+  const hiddenCount = slashMatches.length - visiblePickerItems.length;
+
+  useEffect(() => {
+    setPickerSelection(0);
+  }, [slashQuery, slashMatches.length]);
+
+  const insertSelected = () => {
+    const cmd = visiblePickerItems[pickerSelection];
+    if (!cmd || !slashCtx) return;
+    const remaining = cmd.slice(slashCtx.word.length) + " ";
+    box1Ref.current?.insert(remaining);
+  };
+
+  useInput((_input, key) => {
+    if (!pickerOpen) return;
+    if (key.upArrow) {
+      setPickerSelection((i) => Math.max(0, i - 1));
+    } else if (key.downArrow) {
+      setPickerSelection((i) =>
+        Math.min(visiblePickerItems.length - 1, i + 1),
+      );
+    } else if (key.return) {
+      insertSelected();
+    }
+  });
+
+  const navigateHistory = (delta: -1 | 1) => {
+    setHistoryIdx((idx) => {
+      const next = Math.max(0, Math.min(HISTORY.length - 1, idx + delta));
+      setBox1Value(HISTORY[next]!);
+      return next;
+    });
+  };
 
   const labels = useMemo<TLabels>(
     () => [
       {
-        pattern: /\/[a-zA-Z]+/g,
-        label: (m) => (SLASH_COMMANDS.has(m[0]) ? "slashCommand" : undefined),
+        pattern: /\/[a-zA-Z]*/g,
+        label: (m) => {
+          const text = m[0];
+          const q = text.slice(1);
+          if (q === "") return "slashCommand";
+          const has = SLASH_COMMANDS.some((c) =>
+            subsequenceMatches(q, c.slice(1)),
+          );
+          return has ? "slashCommand" : undefined;
+        },
       },
-      {
-        pattern: /@[a-zA-Z]{3,}/g,
-        label: "mention",
-      },
+      { pattern: /@[a-zA-Z]{3,}/g, label: "mention" },
     ],
     [],
   );
@@ -123,42 +246,73 @@ const App = () => {
     [],
   );
 
+  const box1Keybindings = pickerOpen
+    ? { Up: false, Down: false, Enter: false }
+    : undefined;
+
   return (
     <Box flexDirection="column" gap={1} paddingY={1} paddingX={6}>
       <DemoBox
         title="DEMO 1"
         active={activeBox === 0}
+        hideStatusline={pickerOpen}
+        ref={box1Ref}
         textAreaProps={{
           onSubmit: setSubmitted,
           placeholder: PLACEHOLDER,
-          autoNewLineLimit: 4,
+          autoNewLineLimit: 0,
           viewportLines: 10,
           initialLineCount: 5,
           showInvisibles: true,
-          onTab: () => setActiveBox(1),
+          onTab: pickerOpen ? () => insertSelected() : () => setActiveBox(1),
+          value: box1Value,
+          onChange: setBox1Value,
+          onCursorChange: (pos) => setBox1Cursor(pos),
+          onFirstLineUp: () => navigateHistory(-1),
+          onLastLineDown: () => navigateHistory(1),
           labels,
           styles,
           linePrefix: LineNumberPrefix,
+          keybindings: box1Keybindings,
         }}
       />
 
-      <DemoBox
-        title="DEMO 2"
-        active={activeBox === 1}
-        textAreaProps={{
-          onSubmit: setSubmitted,
-          placeholder: "Second textarea — Tab cycles back.",
-          autoNewLineLimit: 0,
-          viewportLines: 5,
-          initialLineCount: 3,
-          onTab: () => setActiveBox(0),
-          labels,
-          styles,
-          linePrefix: ({ isActiveLine }) => (
-            <Text color={isActiveLine ? "cyan" : "gray"}>│ </Text>
-          ),
-        }}
-      />
+      {pickerOpen ? (
+        <Box paddingX={2} flexDirection="column">
+          {visiblePickerItems.map((cmd, i) => (
+            <Text key={cmd}>
+              <Text color={i === pickerSelection ? "cyan" : undefined}>
+                {i === pickerSelection ? "▸ " : "  "}
+              </Text>
+              <Text color="#ff8800" bold={i === pickerSelection}>
+                {cmd}
+              </Text>
+            </Text>
+          ))}
+          {hiddenCount > 0 ? (
+            <Text dimColor>{`  … ${hiddenCount} more`}</Text>
+          ) : null}
+          <Text dimColor>{"  ↑/↓ select • Enter/Tab insert"}</Text>
+        </Box>
+      ) : (
+        <DemoBox
+          title="DEMO 2"
+          active={activeBox === 1}
+          textAreaProps={{
+            onSubmit: setSubmitted,
+            placeholder: "Second textarea — Tab cycles back.",
+            autoNewLineLimit: 3,
+            viewportLines: 5,
+            initialLineCount: 3,
+            onTab: () => setActiveBox(0),
+            labels,
+            styles,
+            linePrefix: ({ isActiveLine }) => (
+              <Text color={isActiveLine ? "cyan" : "gray"}>│ </Text>
+            ),
+          }}
+        />
+      )}
     </Box>
   );
 };

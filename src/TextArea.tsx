@@ -1,7 +1,13 @@
 import { Box, Text, useBoxMetrics, useStdout } from "ink";
 import type { DOMElement } from "ink";
-import { useRef, useState, useEffect, useMemo } from "react";
-import type { ReactNode } from "react";
+import {
+  useRef,
+  useState,
+  useEffect,
+  useMemo,
+  useImperativeHandle,
+} from "react";
+import type { ReactNode, Ref } from "react";
 import {
   DEFAULT_CURSOR_INTERVAL,
   DEFAULT_TYPING_PAUSE,
@@ -29,6 +35,7 @@ import { useKeyboardInput } from "./hooks/useKeyboardInput.js";
 import { useViewport } from "./hooks/useViewport.js";
 import type {
   TextAreaProps,
+  TextAreaHandle,
   TLinePrefixProps,
   TStyleProps,
   TStyles,
@@ -207,6 +214,7 @@ const renderRowBody = ({
 };
 
 export const TextArea = ({
+  ref,
   focus: isActive,
   onSubmit,
   placeholder,
@@ -236,7 +244,7 @@ export const TextArea = ({
   styles,
   labels,
   keybindings,
-}: TextAreaProps): ReactNode => {
+}: TextAreaProps & { readonly ref?: Ref<TextAreaHandle> }): ReactNode => {
   const resolvedKeybindings = useMemo<Readonly<Record<TKeybinding, boolean>>>(() => {
     const merged: Record<TKeybinding, boolean> = {
       ...DEFAULT_KEYBINDINGS,
@@ -288,6 +296,19 @@ export const TextArea = ({
       dispatchCursorRef.current?.(newCursor, valueForCalc);
     },
   });
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      insert: (text: string) => {
+        if (!text) return;
+        const newValue = value.slice(0, cursor) + text + value.slice(cursor);
+        setValue(newValue);
+        setCursor(cursor + text.length, newValue);
+      },
+    }),
+    [value, cursor, setValue, setCursor],
+  );
 
   const lines = useMemo(() => value.split("\n"), [value]);
 

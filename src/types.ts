@@ -67,6 +67,10 @@ export type TKeybinding =
 
 export type TKeybindings = Partial<Readonly<Record<TKeybinding, boolean>>>;
 
+export type TextAreaHandle = {
+  readonly insert: (text: string) => void;
+};
+
 export type TextAreaProps = {
   readonly focus: boolean;
   readonly onSubmit: (value: string) => void;

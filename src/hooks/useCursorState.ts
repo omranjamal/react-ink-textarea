@@ -83,12 +83,14 @@ export const useCursorState = ({
     onChange?.(newValue);
   };
 
+  const isCursorControlled = controlledPosition !== undefined;
+
   const setCursor = (
     updater: number | ((prev: number) => number),
     valueForCalculation?: string,
   ): void => {
     const newCursor = typeof updater === "function" ? updater(cursor) : updater;
-    if (!isControlled) {
+    if (!isCursorControlled) {
       setInternalCursor(newCursor);
     }
     if (onCursorAttempt) {
