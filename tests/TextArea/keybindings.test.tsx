@@ -78,6 +78,79 @@ describe("TextArea > Keybindings", () => {
     expect(lastFrame()).not.toContain("world");
   });
 
+  it("Ctrl+U at start of non-first line merges with previous", async () => {
+    const onChange = vi.fn();
+    const onCursorChange = vi.fn();
+    const { stdin } = render(
+      <TextArea
+        focus={true}
+        onSubmit={() => {}}
+        onChange={onChange}
+        onCursorChange={onCursorChange}
+      />,
+    );
+
+    stdin.write("ab");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    stdin.write("\x0A");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    stdin.write("cd");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    stdin.write("\x01"); // Ctrl+A → start of line 2
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    stdin.write("\x15"); // Ctrl+U
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(onChange).toHaveBeenLastCalledWith("abcd");
+    const lastCursor =
+      onCursorChange.mock.calls[onCursorChange.mock.calls.length - 1]?.[0];
+    expect(lastCursor).toEqual([0, 2]);
+  });
+
+  it("Ctrl+U at start of empty line removes preceding newline", async () => {
+    const onChange = vi.fn();
+    const onCursorChange = vi.fn();
+    const { stdin } = render(
+      <TextArea
+        focus={true}
+        onSubmit={() => {}}
+        onChange={onChange}
+        onCursorChange={onCursorChange}
+      />,
+    );
+
+    stdin.write("ab");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    stdin.write("\x0A");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    stdin.write("\x15"); // Ctrl+U at start of empty line 2
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(onChange).toHaveBeenLastCalledWith("ab");
+    const lastCursor =
+      onCursorChange.mock.calls[onCursorChange.mock.calls.length - 1]?.[0];
+    expect(lastCursor).toEqual([0, 2]);
+  });
+
+  it("Ctrl+U at position 0 fires onFirstCharacterLeft and leaves value unchanged", async () => {
+    const onFirstCharacterLeft = vi.fn();
+    const onChange = vi.fn();
+    const { stdin } = render(
+      <TextArea
+        focus={true}
+        onSubmit={() => {}}
+        onChange={onChange}
+        onFirstCharacterLeft={onFirstCharacterLeft}
+      />,
+    );
+
+    stdin.write("\x15"); // Ctrl+U at empty buffer
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(onFirstCharacterLeft).toHaveBeenCalled();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   it("Ctrl+K deletes to end of line", async () => {
     const onCursorChange = vi.fn();
     const { stdin, lastFrame } = render(

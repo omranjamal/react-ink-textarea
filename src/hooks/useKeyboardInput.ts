@@ -260,8 +260,21 @@ export const useKeyboardInput = ({
       if (key.ctrl && input === "u") {
         if (!keybindings["Ctrl+U"]) return;
         resetBlink();
-        pushUndo("delete", value, cursor);
         const lineStart = findLineStart(value, cursor);
+        if (lineStart === cursor) {
+          if (cursor === 0) {
+            if (onFirstCharacterLeft) onFirstCharacterLeft();
+            return;
+          }
+          pushUndo("delete", value, cursor);
+          const target = cursor - 1;
+          const newValue = value.slice(0, target) + value.slice(cursor);
+          setValue(newValue);
+          setCursor(target, newValue);
+          resetMutationTracking();
+          return;
+        }
+        pushUndo("delete", value, cursor);
         const newValue = value.slice(0, lineStart) + value.slice(cursor);
         setValue(newValue);
         setCursor(lineStart, newValue);
