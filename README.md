@@ -1,64 +1,43 @@
 # ink-textarea
-
-<img width="580" alt="ink-textarea demo" src="https://github.com/user-attachments/assets/be19b5af-f0db-479d-a5b1-2c19c8e153ce" />
-
-
 > A multiline textarea component for [Ink](https://github.com/vadimdemedes/ink)
 
 Build rich CLI forms with a full-featured textarea that supports multi-line editing, cursor navigation, undo, and customizable line prefixes.
 
+<img width="580" alt="ink-textarea demo" src="https://github.com/user-attachments/assets/be19b5af-f0db-479d-a5b1-2c19c8e153ce" />
+
+
+## Contents
+
+- [Features](#features)
+- [Install](#install)
+- [Usage](#usage)
+  - [1. Basic](#1-basic)
+  - [2. Controlled mode with cursor labels](#2-controlled-mode-with-cursor-labels)
+  - [3. Line numbers and active-line highlight](#3-line-numbers-and-active-line-highlight)
+  - [4. Inline syntax highlighting](#4-inline-syntax-highlighting)
+  - [5. Multi-field form with focus chaining](#5-multi-field-form-with-focus-chaining)
+  - [6. Slash-command picker (arrow + tab handoff)](#6-slash-command-picker-arrow--tab-handoff)
+  - [7. Code-editor preset](#7-code-editor-preset)
+- [Props](#props)
+- [Imperative API (ref)](#imperative-api-ref)
+- [Keybindings](#keybindings)
+  - [Keybinding Toggles](#keybinding-toggles)
+- [Caveats & limitations](#caveats--limitations)
+- [Development](#development)
+- [License](#license)
+
 ## Features
 
-- 🎨 **Visuals & polish**
-  - Blinking inverse-video cursor; pauses on type, resumes after a quiet window.
-  - Active-line highlight (`highlightActiveLine`, `activeLineColor`).
-  - Visible whitespace glyphs — `·` `→` `↵` (toggle per glyph via `showInvisibles`).
-  - Dim multi-line placeholder; vanishes on first keystroke.
-  - `initialLineCount` pads short buffers with virtual rows.
-- 🪪 **Custom gutters**
-  - `linePrefix` render-prop with `lineNumber`, `totalLines`, `isActiveLine`, `isVirtualLine`, `isContinuationLine`, `continuationIndex`.
-  - Drop-in `<LineNumberPrefix />` for a bordered, active-aware gutter — pass straight to `linePrefix`.
-  - Bundled `<LineNumber />` component with active-color, pad char, suffix for fully custom gutters.
-- 🌈 **Syntax highlighting & theming**
-  - Regex-driven labels: `labels: [{ pattern, label }]`.
-  - Function-form labels for veto / allowlist (`label: match => string | undefined`).
-  - Multiple rules → same label; first rule wins on overlap.
-  - Per-label `styles`: `color`, `bgColor`, `bold`, `italic`, `underline`, `strikethrough`, `dim`, `inverse`. `color`/`bgColor` accept any value Ink's `<Text>` accepts — hex, RGB, or named ([color reference](https://github.com/vadimdemedes/ink#color)).
-  - Reserved style keys `text` and `invisibleCharacter`, deep-merged over defaults.
-  - `onCursorChange` reports the label and chunk index under the cursor.
-- ⌨️ **Editing**
-  - Readline-style: `Ctrl+A`/`Ctrl+E`, `Alt+B`/`Alt+F`, `Ctrl+W`, `Alt+Backspace`, `Ctrl+U`, `Ctrl+K`, `Ctrl+Z`.
-  - `Enter` submits; `Ctrl+J` / `Shift+Enter` / `Alt+Enter` / `Ctrl+Enter` insert newline.
-  - `Tab` is a callback (`onTab(shift)`), not a forced insert.
-  - Grouped undo with `undoGroupDelay` + `maxUndo`; pastes are one step.
-  - Bracketed paste via Ink's paste channel, normalized to LF.
-- 🌐 **Unicode-correct**
-  - Grapheme-aware cursor: emoji, ZWJ families (👨‍👩‍👧), flags, surrogate pairs, combining marks. Powered by `Intl.Segmenter`.
-  - Visual-width layout (CJK = 2, ZW = 0) via `string-width` — wrapping, columns, all of it.
-  - Tab expansion at `tabWidth` (default 4), no fake spaces.
-  - CRLF / CR normalized to LF on paste and controlled values.
-- 📐 **Layout & viewport**
-  - Visual-width line wrapping; continuations flagged in `linePrefix` props.
-  - Built-in virtualization via `viewportLines`; defaults to `floor(stdout.rows * 0.5)` so blink-rerenders don't scroll-jank tall buffers.
-  - Auto-scroll keeps cursor visible.
-  - Resize-aware (listens to `stdout` resize).
-  - Hot ASCII path for the common case.
-- 🧭 **Navigation hooks**
-  - `onFirstLineUp`, `onLastLineDown`, `onFirstCharacterLeft`, `onLastCharacterRight` — strict ends only, perfect for forwarding focus.
-  - `autoNewLineLimit` caps trailing blank lines `↓` will create.
-  - `disableArrowNavigation` opt-out (default `false`) when a parent owns navigation.
-  - `keybindings: Partial<Record<TKeybinding, boolean>>` — disable individual chords (`Ctrl+Z`, `Shift+Enter`, etc.) without losing the rest.
-- ⚛️ **React API**
-  - Controlled, uncontrolled, or mixed (`value` + `cursorPosition` optional).
-  - Out-of-bounds cursor clamped, reported via `onCursorChange` — no desync.
-  - Callbacks: `onChange`, `onSubmit`, `onCursorChange`, `onDimensions`, `onTab`, plus boundary callbacks.
-  - `focus` makes it read-only without unmounting.
-- 🧷 **TypeScript**
-  - Strict, all props `readonly`.
-  - Exports: `TextAreaProps`, `TLinePrefixProps`, `TLinePrefixFn`, `TShowInvisibles`, `TStyleProps`, `TStyles`, `TLabels`, `TLabelRule`, `TLabelFn`, `TKeybinding`, `TKeybindings`, `LineNumberProps`, `LineNumberPrefixProps`. Tree-shakable (`"sideEffects": false`).
-  - Render-prop and label-fn signatures fully inferred.
-- 🧪 **Testable**
-  - Works with [`ink-testing-library`](https://github.com/vadimdemedes/ink-testing-library); 250+ tests in-repo as a pattern bank.
+- 🎨 Polished feel — blinking cursor that pauses while typing, active-line highlight, multi-line placeholder, optional whitespace glyphs.
+- 🪪 Custom gutter via `linePrefix` render-prop, plus a drop-in `<LineNumberPrefix />`.
+- 🌈 Regex (or function) labels with per-label styles; cursor reports the label under it.
+- ⌨️ Readline keybindings, configurable per chord. `Tab` is a callback. Grouped undo and bracketed paste.
+- 🌐 Unicode-correct: grapheme cursor, visual-width wrapping, real tab expansion, CRLF normalized.
+- 📐 Built-in viewport virtualization; auto-scroll; resize-aware.
+- 🧭 Boundary callbacks (`onFirstLineUp`, `onLastLineDown`, `onFirstCharacterLeft`, `onLastCharacterRight`) for parent-owned focus chaining.
+- ⚛️ Controlled, uncontrolled, or mixed. Imperative `ref.insert(text)` for autocomplete pickers.
+- 🧷 Strict TypeScript, tree-shakable.
+- 🧪 Works with [`ink-testing-library`](https://github.com/vadimdemedes/ink-testing-library); 250+ tests in-repo.
 
 ## Install
 
@@ -367,7 +346,7 @@ const CodeEditor = () => {
 | `cursorInterval`        | `number`                                                                                    | Cursor blink interval in milliseconds. Defaults to `500`.                                                                                 |
 | `typingPause`           | `number`                                                                                    | Milliseconds to wait after typing before resuming cursor blink. Defaults to `450`.                                                        |
 | `maxUndo`               | `number`                                                                                    | Maximum number of undo steps to retain. Defaults to `128`.                                                                                |
-| `undoGroupDelay`        | `number`                                                                                    | Milliseconds to group consecutive edits into a single undo step. Defaults to `2500`.                                                      |
+| `undoGroupDelay`        | `number`                                                                                    | Milliseconds to group consecutive edits into a single undo step. Defaults to `750`.                                                       |
 | `autoNewLineLimit`      | `number`                                                                                    | Maximum number of empty lines allowed after the last line with content. Only applies to Down arrow navigation. Defaults to `3`.           |
 | `disableArrowNavigation` | `boolean`                                                                                  | When `true`, disables cursor movement via arrow keys (and word/line jumps). Useful for implementing suggestion pickers. Defaults to `false`.                    |
 | `keybindings`           | `Partial<Record<TKeybinding, boolean>>`                                                     | Per-chord enable/disable map. Merged over defaults (all `true`). Set a chord to `false` to swallow it. `disableArrowNavigation: true` additionally forces all nav chords off. See **Keybinding Toggles** below.        |
@@ -388,6 +367,31 @@ const CodeEditor = () => {
 | `styles`                | `{ text?, invisibleCharacter?, [labelName]? }` of `TStyleProps`                             | Style overrides for the default text run, invisible glyphs, and any user-defined labels. `color` and `bgColor` accept any value Ink's `<Text>` accepts — see the [Ink color reference](https://github.com/vadimdemedes/ink#color). |
 | `labels`                | `readonly { pattern: RegExp; label: string \| ((match: RegExpMatchArray) => string \| undefined) }[]` | Array of label rules. Each rule's `pattern` is matched against the value; matches receive the rule's `label`. Use a function form to allowlist matches — return `undefined` to leave a match unlabeled. First rule wins on overlap. |
 
+## Imperative API (ref)
+
+Pass a `ref` of type `TextAreaHandle` to insert text programmatically — typically from an autocomplete picker. Insertion happens at the current cursor and advances it. Works in both controlled and uncontrolled modes.
+
+```tsx
+import { useRef } from "react";
+import { TextArea, type TextAreaHandle } from "ink-textarea";
+
+const Composer = () => {
+  const ref = useRef<TextAreaHandle>(null);
+  return (
+    <TextArea
+      ref={ref}
+      focus
+      onSubmit={() => {}}
+      onTab={() => ref.current?.insert("/help ")}
+    />
+  );
+};
+```
+
+| Method                  | Description                                                                                  |
+| ----------------------- | -------------------------------------------------------------------------------------------- |
+| `insert(text: string)`  | Insert `text` at the current cursor and advance it past the inserted text. Empty string is a no-op. |
+
 ## Keybindings
 
 | Key             | Action                         |
@@ -404,7 +408,7 @@ const CodeEditor = () => {
 | `Ctrl+A`        | Start of current line          |
 | `Ctrl+E`        | End of current line            |
 | `Ctrl+W`        | Delete word before cursor      |
-| `Ctrl+U`        | Delete to start of line        |
+| `Ctrl+U`        | Delete to start of line. At column 0, joins with previous line (matches Cmd+Backspace mapping in iTerm2/ghostty). |
 | `Ctrl+K`        | Delete to end of line          |
 | `Backspace`     | Delete character before cursor |
 | `Delete`        | Delete character before cursor (same as `Backspace`) |
