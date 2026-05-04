@@ -554,7 +554,7 @@ export const TextArea = ({
   if (value.length === 0 && !isActive && placeholderLines.length > 0) {
     const visibleCount = Math.max(0, visibleRowEnd - visibleRowStart);
     return (
-      <Box flexDirection="column">
+      <Box flexDirection="column" width="100%">
         {Array.from({ length: visibleCount }, (_, k) => {
           const i = visibleRowStart + k;
           return renderLine(
@@ -582,7 +582,7 @@ export const TextArea = ({
   if (value.length === 0 && isActive) {
     const visibleCount = Math.max(0, visibleRowEnd - visibleRowStart);
     return (
-      <Box flexDirection="column">
+      <Box flexDirection="column" width="100%">
         {Array.from({ length: visibleCount }, (_, k) => {
           const i = visibleRowStart + k;
           return renderLine(
@@ -710,5 +710,5 @@ export const TextArea = ({
     );
   }
 
-  return <Box flexDirection="column">{renderedLines}</Box>;
+  return <Box flexDirection="column" width="100%">{renderedLines}</Box>;
 };
