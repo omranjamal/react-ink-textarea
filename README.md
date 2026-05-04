@@ -1,5 +1,8 @@
 # ink-textarea
 
+<img width="580" alt="ink-textarea demo" src="https://github.com/user-attachments/assets/be19b5af-f0db-479d-a5b1-2c19c8e153ce" />
+
+
 > A multiline textarea component for [Ink](https://github.com/vadimdemedes/ink)
 
 Build rich CLI forms with a full-featured textarea that supports multi-line editing, cursor navigation, undo, and customizable line prefixes.
