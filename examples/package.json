@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "advanced": "tsx --no-cache --watch --conditions=development advanced.tsx"
+    "example": "tsx --no-cache --watch --conditions=development example.tsx"
   },
   "dependencies": {
     "ink": "^7.0.1",
