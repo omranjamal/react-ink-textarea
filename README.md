@@ -1,6 +1,10 @@
 # react-ink-textarea
 > A multiline textarea component for [Ink](https://github.com/vadimdemedes/ink)
 
+<img alt="GitHub Issues or Pull Requests" src="https://img.shields.io/github/issues/omranjamal/react-ink-textarea"> <img alt="NPM Downloads" src="https://img.shields.io/npm/dw/react-ink-textarea"> <img alt="NPM Version" src="https://img.shields.io/npm/v/react-ink-textarea"> <img alt="NPM License" src="https://img.shields.io/npm/l/react-ink-textarea">
+
+
+
 Build rich CLI forms with a full-featured textarea that supports multi-line editing, cursor navigation, undo, and customizable line prefixes.
 
 <img width="580" alt="react-ink-textarea demo" src="https://github.com/user-attachments/assets/fbd7325e-4b16-4fde-96f6-e02a1b839cb9" />
