@@ -227,6 +227,7 @@ export const TextArea = ({
   highlightActiveLine = false,
   activeLineColor = undefined,
   disableArrowNavigation = false,
+  disableCursorBlink = false,
   value: controlledValue,
   cursorPosition: controlledPosition,
   onChange,
@@ -353,6 +354,7 @@ export const TextArea = ({
     isActive,
     cursorInterval,
     typingPause,
+    disableCursorBlink,
   });
 
   const { line: cursorLine, column: cursorColumn } = getCursorLineAndColumn(

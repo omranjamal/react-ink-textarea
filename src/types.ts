@@ -84,6 +84,7 @@ export type TextAreaProps = {
   readonly highlightActiveLine?: boolean;
   readonly activeLineColor?: string;
   readonly disableArrowNavigation?: boolean;
+  readonly disableCursorBlink?: boolean;
   // Controlled mode props
   readonly value?: string;
   readonly cursorPosition?: [line: number, col: number];

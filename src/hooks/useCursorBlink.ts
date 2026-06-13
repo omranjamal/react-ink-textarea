@@ -4,6 +4,7 @@ type UseCursorBlinkOptions = {
   isActive: boolean;
   cursorInterval: number;
   typingPause: number;
+  disableCursorBlink: boolean;
 };
 
 type UseCursorBlinkReturn = {
@@ -15,6 +16,7 @@ export const useCursorBlink = ({
   isActive,
   cursorInterval,
   typingPause,
+  disableCursorBlink,
 }: UseCursorBlinkOptions): UseCursorBlinkReturn => {
   const [cursorVisible, setCursorVisible] = useState(true);
   const blinkIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -37,8 +39,9 @@ export const useCursorBlink = ({
   };
 
   useEffect(() => {
-    if (!isActive) {
+    if (!isActive || disableCursorBlink) {
       clearAll();
+      setCursorVisible(true);
       return;
     }
 
@@ -47,11 +50,13 @@ export const useCursorBlink = ({
     }, cursorInterval);
 
     return clearAll;
-  }, [isActive, cursorInterval]);
+  }, [isActive, cursorInterval, disableCursorBlink]);
 
   const resetBlink = (): void => {
     setCursorVisible(true);
     clearAll();
+
+    if (disableCursorBlink) return;
 
     typingTimeoutRef.current = setTimeout(() => {
       typingTimeoutRef.current = null;
