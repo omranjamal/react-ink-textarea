@@ -332,6 +332,7 @@ const App = () => {
             viewportLines: 5,
             initialLineCount: 3,
             onTab: () => setActiveBox(0),
+            disableCursorBlink: true,
             labels,
             styles,
             linePrefix: ({ isActiveLine }) => (
