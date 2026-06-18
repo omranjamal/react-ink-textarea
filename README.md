@@ -3,13 +3,16 @@
 
 [<img alt="GitHub Issues or Pull Requests" src="https://img.shields.io/github/issues/omranjamal/react-ink-textarea">](https://github.com/omranjamal/react-ink-textarea/issues) [<img alt="NPM Downloads" src="https://img.shields.io/npm/dw/react-ink-textarea">](https://www.npmjs.com/package/react-ink-textarea) [<img alt="NPM Version" src="https://img.shields.io/npm/v/react-ink-textarea">](https://www.npmjs.com/package/react-ink-textarea) [<img alt="NPM License" src="https://img.shields.io/npm/l/react-ink-textarea">](https://github.com/omranjamal/react-ink-textarea/blob/main/LICENSE) [<img alt="GitHub forks" src="https://img.shields.io/github/forks/omranjamal/react-ink-textarea?style=flat">](https://github.com/omranjamal/react-ink-textarea/network/members)
 
-
-
-
 Build rich CLI forms with a full-featured textarea that supports multi-line editing, cursor navigation, undo, and customizable line prefixes.
 
 <img width="580" alt="react-ink-textarea demo" src="https://github.com/user-attachments/assets/fbd7325e-4b16-4fde-96f6-e02a1b839cb9" />
 
+<br/>
+<br/>
+
+**Sponsored By**  
+
+[<img width="248" height="104" alt="sponsor (1)" src="https://github.com/user-attachments/assets/f3fc6625-af38-435e-acf9-09b9cbc7a98c" />](https://dbctx.io?utm_source=readme&utm_campaign=react-ink-textarea)
 
 ## Contents
 
