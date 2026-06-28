@@ -257,15 +257,15 @@ export const useKeyboardInput = ({
         return;
       }
 
-      if (key.ctrl && input === "u") {
-        if (!keybindings["Ctrl+U"]) return;
+      // Delete from the cursor back to the start of the current line. At the
+      // very start of the buffer this is a no-op — it must NOT fire a boundary
+      // navigation callback (those belong to the arrow keys only). Shared by
+      // Ctrl+U and Cmd+Backspace (super+Backspace).
+      const killToLineStart = () => {
         resetBlink();
         const lineStart = findLineStart(value, cursor);
         if (lineStart === cursor) {
-          if (cursor === 0) {
-            if (onFirstCharacterLeft) onFirstCharacterLeft();
-            return;
-          }
+          if (cursor === 0) return;
           pushUndo("delete", value, cursor);
           const target = cursor - 1;
           const newValue = value.slice(0, target) + value.slice(cursor);
@@ -279,6 +279,11 @@ export const useKeyboardInput = ({
         setValue(newValue);
         setCursor(lineStart, newValue);
         resetMutationTracking();
+      };
+
+      if (key.ctrl && input === "u") {
+        if (!keybindings["Ctrl+U"]) return;
+        killToLineStart();
         return;
       }
 
@@ -296,6 +301,13 @@ export const useKeyboardInput = ({
       }
 
       if (key.backspace || key.delete) {
+        // Cmd+Backspace in terminals that report the super modifier (kitty
+        // protocol). macOS convention is delete-to-line-start, same as Ctrl+U.
+        if (key.super && key.backspace) {
+          if (!keybindings["Ctrl+U"]) return;
+          killToLineStart();
+          return;
+        }
         if (key.meta) {
           if (!keybindings["Alt+Backspace"]) return;
           resetBlink();

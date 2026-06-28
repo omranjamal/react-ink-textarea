@@ -132,7 +132,7 @@ describe("TextArea > Keybindings", () => {
     expect(lastCursor).toEqual([0, 2]);
   });
 
-  it("Ctrl+U at position 0 fires onFirstCharacterLeft and leaves value unchanged", async () => {
+  it("Ctrl+U at position 0 is a no-op and does not fire boundary navigation", async () => {
     const onFirstCharacterLeft = vi.fn();
     const onChange = vi.fn();
     const { stdin } = render(
@@ -147,8 +147,49 @@ describe("TextArea > Keybindings", () => {
     stdin.write("\x15"); // Ctrl+U at empty buffer
     await new Promise((resolve) => setTimeout(resolve, 50));
 
-    expect(onFirstCharacterLeft).toHaveBeenCalled();
+    expect(onFirstCharacterLeft).not.toHaveBeenCalled();
     expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("Cmd+Backspace (legacy \\x15) at position 0 does not fire boundary navigation", async () => {
+    const onFirstCharacterLeft = vi.fn();
+    const onChange = vi.fn();
+    const { stdin } = render(
+      <TextArea
+        focus={true}
+        onSubmit={() => {}}
+        onChange={onChange}
+        onFirstCharacterLeft={onFirstCharacterLeft}
+      />,
+    );
+
+    stdin.write("\x15"); // Ghostty maps Cmd+Backspace to legacy Ctrl+U
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(onFirstCharacterLeft).not.toHaveBeenCalled();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("Cmd+Backspace (super) deletes to start of current line", async () => {
+    const onCursorChange = vi.fn();
+    const { stdin, lastFrame } = render(
+      <TextArea
+        focus={true}
+        onSubmit={() => {}}
+        onCursorChange={onCursorChange}
+      />,
+    );
+
+    stdin.write("hello world");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    stdin.write("\x1b[127;9u"); // kitty: Backspace + super (Cmd)
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(lastFrame()).not.toContain("hello");
+    const lastCursor =
+      onCursorChange.mock.calls[onCursorChange.mock.calls.length - 1]?.[0];
+    expect(lastCursor).toEqual([0, 0]);
   });
 
   it("Ctrl+K deletes to end of line", async () => {
