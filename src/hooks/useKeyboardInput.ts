@@ -33,7 +33,14 @@ type UseKeyboardInputOptions = {
     (value: number, valueForCalculation?: string): void;
   };
   pushUndo: (type: "insert" | "delete", value: string, cursor: number) => void;
-  popUndo: () => { value: string; cursor: number } | undefined;
+  undo: (
+    value: string,
+    cursor: number,
+  ) => { value: string; cursor: number } | undefined;
+  redo: (
+    value: string,
+    cursor: number,
+  ) => { value: string; cursor: number } | undefined;
   resetMutationTracking: () => void;
   resetBlink: () => void;
   lineWidth: number;
@@ -55,7 +62,8 @@ export const useKeyboardInput = ({
   setValue,
   setCursor,
   pushUndo,
-  popUndo,
+  undo,
+  redo,
   resetMutationTracking,
   resetBlink,
   lineWidth,
@@ -335,7 +343,19 @@ export const useKeyboardInput = ({
       if (key.ctrl && input === "z") {
         if (!keybindings["Ctrl+Z"]) return;
         resetBlink();
-        const entry = popUndo();
+        const entry = undo(value, cursor);
+        if (entry) {
+          setValue(entry.value);
+          setCursor(entry.cursor);
+        }
+        resetMutationTracking();
+        return;
+      }
+
+      if (key.ctrl && input === "y") {
+        if (!keybindings["Ctrl+Y"]) return;
+        resetBlink();
+        const entry = redo(value, cursor);
         if (entry) {
           setValue(entry.value);
           setCursor(entry.cursor);

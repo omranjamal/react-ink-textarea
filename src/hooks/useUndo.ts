@@ -10,7 +10,8 @@ type UseUndoOptions = {
 
 type UseUndoReturn = {
   pushUndo: (type: TMutationType, value: string, cursor: number) => void;
-  popUndo: () => TUndoEntry | undefined;
+  undo: (value: string, cursor: number) => TUndoEntry | undefined;
+  redo: (value: string, cursor: number) => TUndoEntry | undefined;
   resetMutationTracking: () => void;
 };
 
@@ -19,14 +20,25 @@ export const useUndo = ({
   undoGroupDelay,
 }: UseUndoOptions): UseUndoReturn => {
   const undoStack = useRef<TUndoEntry[]>([]);
+  const redoStack = useRef<TUndoEntry[]>([]);
   const lastMutationTime = useRef(0);
   const lastMutationType = useRef<TMutationType | null>(null);
+
+  const pushCapped = (stack: TUndoEntry[], entry: TUndoEntry): void => {
+    if (stack.length >= maxUndo) {
+      stack.shift();
+    }
+    stack.push(entry);
+  };
 
   const pushUndo = (
     type: TMutationType,
     value: string,
     cursor: number,
   ): void => {
+    // Any fresh edit invalidates the redo history.
+    redoStack.current.length = 0;
+
     const now = Date.now();
     const elapsed = now - lastMutationTime.current;
     const sameType = type === lastMutationType.current;
@@ -38,15 +50,23 @@ export const useUndo = ({
       return;
     }
 
-    const stack = undoStack.current;
-    if (stack.length >= maxUndo) {
-      stack.shift();
-    }
-    stack.push({ value, cursor });
+    pushCapped(undoStack.current, { value, cursor });
   };
 
-  const popUndo = (): TUndoEntry | undefined => {
-    return undoStack.current.pop();
+  const undo = (value: string, cursor: number): TUndoEntry | undefined => {
+    const entry = undoStack.current.pop();
+    if (entry) {
+      pushCapped(redoStack.current, { value, cursor });
+    }
+    return entry;
+  };
+
+  const redo = (value: string, cursor: number): TUndoEntry | undefined => {
+    const entry = redoStack.current.pop();
+    if (entry) {
+      pushCapped(undoStack.current, { value, cursor });
+    }
+    return entry;
   };
 
   const resetMutationTracking = (): void => {
@@ -54,5 +74,5 @@ export const useUndo = ({
     lastMutationType.current = null;
   };
 
-  return { pushUndo, popUndo, resetMutationTracking };
+  return { pushUndo, undo, redo, resetMutationTracking };
 };

@@ -29,6 +29,7 @@ export const DEFAULT_KEYBINDINGS: Readonly<Record<TKeybinding, boolean>> = {
   Delete: true,
   "Alt+Backspace": true,
   "Ctrl+Z": true,
+  "Ctrl+Y": true,
 };
 
 export const NAV_KEYBINDINGS: readonly TKeybinding[] = [

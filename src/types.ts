@@ -63,7 +63,8 @@ export type TKeybinding =
   | "Backspace"
   | "Delete"
   | "Alt+Backspace"
-  | "Ctrl+Z";
+  | "Ctrl+Z"
+  | "Ctrl+Y";
 
 export type TKeybindings = Partial<Readonly<Record<TKeybinding, boolean>>>;
 
