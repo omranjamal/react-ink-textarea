@@ -345,7 +345,7 @@ export const TextArea = ({
     }
   }, [measuredWidth, onDimensions]);
 
-  const { pushUndo, popUndo, resetMutationTracking } = useUndo({
+  const { pushUndo, undo, redo, resetMutationTracking } = useUndo({
     maxUndo,
     undoGroupDelay,
   });
@@ -390,7 +390,8 @@ export const TextArea = ({
     setValue,
     setCursor,
     pushUndo,
-    popUndo,
+    undo,
+    redo,
     resetMutationTracking,
     resetBlink,
     lineWidth,
