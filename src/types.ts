@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 export type TLinePrefixProps = {
   readonly lineNumber: number;
   readonly totalLines: number;
+  readonly readOnly: boolean;
   readonly isActiveLine: boolean;
   readonly isVirtualLine: boolean;
   readonly isContinuationLine: boolean;
@@ -85,6 +86,7 @@ export type TextAreaProps = {
   readonly highlightActiveLine?: boolean;
   readonly activeLineColor?: string;
   readonly disableArrowNavigation?: boolean;
+  readonly readOnly?: boolean;
   readonly disableCursorBlink?: boolean;
   // Controlled mode props
   readonly value?: string;

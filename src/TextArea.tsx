@@ -227,6 +227,7 @@ export const TextArea = ({
   highlightActiveLine = false,
   activeLineColor = undefined,
   disableArrowNavigation = false,
+  readOnly = false,
   disableCursorBlink = false,
   value: controlledValue,
   cursorPosition: controlledPosition,
@@ -258,20 +259,29 @@ export const TextArea = ({
   }, [keybindings, disableArrowNavigation]);
   const resolvedStyles = useMemo(() => resolveStyles(styles), [styles]);
   const textProps = useMemo(
-    () => styleToTextProps(resolvedStyles.text),
-    [resolvedStyles.text],
+    () => ({
+      ...styleToTextProps(resolvedStyles.text),
+      dimColor: readOnly || resolvedStyles.text.dim,
+    }),
+    [readOnly, resolvedStyles.text],
   );
   const invisibleProps = useMemo(
-    () => styleToTextProps(resolvedStyles.invisibleCharacter),
-    [resolvedStyles.invisibleCharacter],
+    () => ({
+      ...styleToTextProps(resolvedStyles.invisibleCharacter),
+      dimColor: readOnly || resolvedStyles.invisibleCharacter.dim,
+    }),
+    [readOnly, resolvedStyles.invisibleCharacter],
   );
   const labelTextProps = useMemo(() => {
     const out: Record<string, ReturnType<typeof styleToTextProps>> = {};
     for (const [k, v] of Object.entries(resolvedStyles.byLabel)) {
-      out[k] = styleToTextProps(v);
+      out[k] = {
+        ...styleToTextProps(v),
+        dimColor: readOnly || v.dim,
+      };
     }
     return out;
-  }, [resolvedStyles.byLabel]);
+  }, [readOnly, resolvedStyles.byLabel]);
   const inv =
     typeof showInvisibles === "boolean"
       ? {
@@ -302,13 +312,13 @@ export const TextArea = ({
     ref,
     () => ({
       insert: (text: string) => {
-        if (!text) return;
+        if (readOnly || !text) return;
         const newValue = value.slice(0, cursor) + text + value.slice(cursor);
         setValue(newValue);
         setCursor(cursor + text.length, newValue);
       },
     }),
-    [value, cursor, setValue, setCursor],
+    [readOnly, value, cursor, setValue, setCursor],
   );
 
   const lines = useMemo(() => value.split("\n"), [value]);
@@ -377,6 +387,7 @@ export const TextArea = ({
 
   useKeyboardInput({
     isActive,
+    readOnly,
     value,
     cursor,
     keybindings: resolvedKeybindings,
@@ -514,6 +525,7 @@ export const TextArea = ({
     const prefixProps: TLinePrefixProps = {
       lineNumber,
       totalLines: totalLinesArg,
+      readOnly,
       isActiveLine,
       isVirtualLine,
       isContinuationLine,
