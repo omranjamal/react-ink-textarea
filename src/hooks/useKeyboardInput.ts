@@ -17,6 +17,7 @@ import type { TKeybinding } from "../types.js";
 
 type UseKeyboardInputOptions = {
   isActive: boolean;
+  readOnly: boolean;
   value: string;
   cursor: number;
   keybindings: Readonly<Record<TKeybinding, boolean>>;
@@ -49,6 +50,7 @@ type UseKeyboardInputOptions = {
 
 export const useKeyboardInput = ({
   isActive,
+  readOnly,
   value,
   cursor,
   keybindings,
@@ -71,6 +73,7 @@ export const useKeyboardInput = ({
 }: UseKeyboardInputOptions): void => {
   usePaste(
     (text) => {
+      if (readOnly) return;
       const normalized = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
       if (!normalized) return;
       resetBlink();
@@ -112,6 +115,7 @@ export const useKeyboardInput = ({
 
       if (newlineChord) {
         if (!keybindings[newlineChord]) return;
+        if (readOnly) return;
         resetBlink();
         pushUndo("insert", value, cursor);
         const newValue = value.slice(0, cursor) + "\n" + value.slice(cursor);
@@ -160,36 +164,31 @@ export const useKeyboardInput = ({
         if (!keybindings.Down) return;
         resetBlink();
 
+        const handleLastLineDown = (): void => {
+          const trailingEmpty = countTrailingEmptyLines(value);
+          if (readOnly || trailingEmpty >= autoNewLineLimit) {
+            if (onLastLineDown) onLastLineDown();
+            else setCursor(value.length);
+            return;
+          }
+          pushUndo("insert", value, cursor);
+          const newValue = value + "\n";
+          setValue(newValue);
+          setCursor(newValue.length, newValue);
+        };
+
         if (lineWidth > 0) {
           const newPos = computeVisualDownCursor(value, cursor, lineWidth, visualRows);
           if (newPos !== null) {
             setCursor(newPos);
           } else {
-            const trailingEmpty = countTrailingEmptyLines(value);
-            if (trailingEmpty >= autoNewLineLimit) {
-              if (onLastLineDown) { onLastLineDown(); return; }
-              setCursor(value.length);
-              return;
-            }
-            pushUndo("insert", value, cursor);
-            const newValue = value + "\n";
-            setValue(newValue);
-            setCursor(newValue.length, newValue);
+            handleLastLineDown();
           }
         } else {
           const currentLineEnd = findLineEnd(value, cursor);
           const isOnLastLine = currentLineEnd >= value.length;
           if (isOnLastLine) {
-            const trailingEmpty = countTrailingEmptyLines(value);
-            if (trailingEmpty >= autoNewLineLimit) {
-              if (onLastLineDown) { onLastLineDown(); return; }
-              setCursor(value.length);
-              return;
-            }
-            pushUndo("insert", value, cursor);
-            const newValue = value + "\n";
-            setValue(newValue);
-            setCursor(newValue.length, newValue);
+            handleLastLineDown();
           } else {
             setCursor((c) => {
               const { column } = getCursorLineAndColumn(value, c);
@@ -255,6 +254,7 @@ export const useKeyboardInput = ({
 
       if (key.ctrl && input === "w") {
         if (!keybindings["Ctrl+W"]) return;
+        if (readOnly) return;
         resetBlink();
         pushUndo("delete", value, cursor);
         const boundary = findPrevWordBoundary(value, cursor);
@@ -291,12 +291,14 @@ export const useKeyboardInput = ({
 
       if (key.ctrl && input === "u") {
         if (!keybindings["Ctrl+U"]) return;
+        if (readOnly) return;
         killToLineStart();
         return;
       }
 
       if (key.ctrl && input === "k") {
         if (!keybindings["Ctrl+K"]) return;
+        if (readOnly) return;
         resetBlink();
         pushUndo("delete", value, cursor);
         const lineEnd = findLineEnd(value, cursor);
@@ -309,6 +311,7 @@ export const useKeyboardInput = ({
       }
 
       if (key.backspace || key.delete) {
+        if (readOnly) return;
         // Cmd+Backspace in terminals that report the super modifier (kitty
         // protocol). macOS convention is delete-to-line-start, same as Ctrl+U.
         if (key.super && key.backspace) {
@@ -342,6 +345,7 @@ export const useKeyboardInput = ({
 
       if (key.ctrl && input === "z") {
         if (!keybindings["Ctrl+Z"]) return;
+        if (readOnly) return;
         resetBlink();
         const entry = undo(value, cursor);
         if (entry) {
@@ -354,6 +358,7 @@ export const useKeyboardInput = ({
 
       if (key.ctrl && input === "y") {
         if (!keybindings["Ctrl+Y"]) return;
+        if (readOnly) return;
         resetBlink();
         const entry = redo(value, cursor);
         if (entry) {
@@ -374,6 +379,7 @@ export const useKeyboardInput = ({
       }
 
       if (input && input.length > 0) {
+        if (readOnly) return;
         resetBlink();
         pushUndo("insert", value, cursor);
         const newValue = value.slice(0, cursor) + input + value.slice(cursor);
