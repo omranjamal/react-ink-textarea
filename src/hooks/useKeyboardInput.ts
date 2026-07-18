@@ -164,46 +164,31 @@ export const useKeyboardInput = ({
         if (!keybindings.Down) return;
         resetBlink();
 
+        const handleLastLineDown = (): void => {
+          const trailingEmpty = countTrailingEmptyLines(value);
+          if (readOnly || trailingEmpty >= autoNewLineLimit) {
+            if (onLastLineDown) onLastLineDown();
+            else setCursor(value.length);
+            return;
+          }
+          pushUndo("insert", value, cursor);
+          const newValue = value + "\n";
+          setValue(newValue);
+          setCursor(newValue.length, newValue);
+        };
+
         if (lineWidth > 0) {
           const newPos = computeVisualDownCursor(value, cursor, lineWidth, visualRows);
           if (newPos !== null) {
             setCursor(newPos);
           } else {
-            if (readOnly) {
-              if (onLastLineDown) onLastLineDown();
-              else setCursor(value.length);
-              return;
-            }
-            const trailingEmpty = countTrailingEmptyLines(value);
-            if (trailingEmpty >= autoNewLineLimit) {
-              if (onLastLineDown) { onLastLineDown(); return; }
-              setCursor(value.length);
-              return;
-            }
-            pushUndo("insert", value, cursor);
-            const newValue = value + "\n";
-            setValue(newValue);
-            setCursor(newValue.length, newValue);
+            handleLastLineDown();
           }
         } else {
           const currentLineEnd = findLineEnd(value, cursor);
           const isOnLastLine = currentLineEnd >= value.length;
           if (isOnLastLine) {
-            if (readOnly) {
-              if (onLastLineDown) onLastLineDown();
-              else setCursor(value.length);
-              return;
-            }
-            const trailingEmpty = countTrailingEmptyLines(value);
-            if (trailingEmpty >= autoNewLineLimit) {
-              if (onLastLineDown) { onLastLineDown(); return; }
-              setCursor(value.length);
-              return;
-            }
-            pushUndo("insert", value, cursor);
-            const newValue = value + "\n";
-            setValue(newValue);
-            setCursor(newValue.length, newValue);
+            handleLastLineDown();
           } else {
             setCursor((c) => {
               const { column } = getCursorLineAndColumn(value, c);

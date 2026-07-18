@@ -80,13 +80,13 @@ const resolveStyles = (input: TStyles | undefined): ResolvedStyles => {
   };
 };
 
-const styleToTextProps = (s: TStyleProps) => ({
+const styleToTextProps = (s: TStyleProps, forceDim = false) => ({
   color: s.color,
   bold: s.bold,
   italic: s.italic,
   underline: s.underline,
   strikethrough: s.strikethrough,
-  dimColor: s.dim,
+  dimColor: forceDim || s.dim,
   inverse: s.inverse,
   backgroundColor: s.bgColor,
 });
@@ -96,16 +96,21 @@ type RenderChunkBodyArgs = {
   chunkAbsStart: number;
   cursorPos: number;
   cursorVisible: boolean;
+  readOnly: boolean;
   isCursorAtLineEnd: boolean;
   inv: InvisiblesConfig;
   showAnyInvisible: boolean;
   invisibleProps: ReturnType<typeof styleToTextProps>;
+  textProps: ReturnType<typeof styleToTextProps>;
   labelByChar: string[];
   labelTextProps: Record<string, ReturnType<typeof styleToTextProps>>;
   tabWidth: number;
 };
 
 const graphemeSegmenter = new Intl.Segmenter("en", { granularity: "grapheme" });
+
+const renderCursorCell = (cell: string): string =>
+  `\x1b[7m${cell}\x1b[27m`;
 
 const isAsciiOnly = (s: string): boolean => {
   for (let i = 0; i < s.length; i++) {
@@ -120,10 +125,12 @@ const renderRowBody = ({
   chunkAbsStart,
   cursorPos,
   cursorVisible,
+  readOnly,
   isCursorAtLineEnd,
   inv,
   showAnyInvisible,
   invisibleProps,
+  textProps,
   labelByChar,
   labelTextProps,
   tabWidth,
@@ -140,7 +147,7 @@ const renderRowBody = ({
     const label = key.slice(0, sep);
     const mode = key.slice(sep + 1);
     if (mode === "I") return invisibleProps;
-    return label && label !== "text" ? labelTextProps[label] : undefined;
+    return label && label !== "text" ? labelTextProps[label] : textProps;
   };
 
   const flush = (): void => {
@@ -186,27 +193,46 @@ const renderRowBody = ({
     }
     const charLabel = isInv ? "" : (labelByChar[chunkAbsStart + i] ?? "text");
     const isCur = i === cursorPos;
-    const cellStr = isCur
-      ? cursorVisible
-        ? g === "\t"
-          ? `\x1b[7m${display.charAt(0)}\x1b[27m${display.slice(1)}`
-          : `\x1b[7m${display}\x1b[27m`
-        : display === " " && isCursorAtLineEnd
-          ? " "
-          : display
-      : display;
     const key = `${charLabel}|${isInv ? "I" : "T"}`;
+    if (isCur && cursorVisible) {
+      flush();
+      nodes.push(
+        <Text
+          key={`s${segIdx++}`}
+          {...propsForKey(key)}
+          dimColor={readOnly ? false : propsForKey(key)?.dimColor}
+        >
+          {renderCursorCell(g === "\t" ? display.charAt(0) : display)}
+        </Text>,
+      );
+      const remainder = g === "\t" ? display.slice(1) : "";
+      if (remainder) {
+        bufKey = key;
+        buf = remainder;
+      }
+      continue;
+    }
+    const cellStr =
+      isCur && display === " " && isCursorAtLineEnd ? " " : display;
     if (key !== bufKey) flush();
     bufKey = key;
     buf += cellStr;
   }
 
   if (cursorPos === chunk.length) {
-    const cursorStr = cursorVisible ? "\x1b[7m \x1b[27m" : " ";
     const key = "text|T";
-    if (key !== bufKey) flush();
-    bufKey = key;
-    buf += cursorStr;
+    flush();
+    nodes.push(
+      <Text
+        key={`s${segIdx++}`}
+        {...propsForKey(key)}
+        dimColor={
+          cursorVisible && readOnly ? false : propsForKey(key)?.dimColor
+        }
+      >
+        {cursorVisible ? renderCursorCell(" ") : " "}
+      </Text>,
+    );
   }
 
   flush();
@@ -259,26 +285,21 @@ export const TextArea = ({
   }, [keybindings, disableArrowNavigation]);
   const resolvedStyles = useMemo(() => resolveStyles(styles), [styles]);
   const textProps = useMemo(
-    () => ({
-      ...styleToTextProps(resolvedStyles.text),
-      dimColor: readOnly || resolvedStyles.text.dim,
-    }),
+    () => styleToTextProps(resolvedStyles.text, readOnly),
     [readOnly, resolvedStyles.text],
   );
+  const contentTextProps = useMemo(
+    () => (readOnly ? { ...textProps, dimColor: false } : textProps),
+    [readOnly, textProps],
+  );
   const invisibleProps = useMemo(
-    () => ({
-      ...styleToTextProps(resolvedStyles.invisibleCharacter),
-      dimColor: readOnly || resolvedStyles.invisibleCharacter.dim,
-    }),
+    () => styleToTextProps(resolvedStyles.invisibleCharacter, readOnly),
     [readOnly, resolvedStyles.invisibleCharacter],
   );
   const labelTextProps = useMemo(() => {
     const out: Record<string, ReturnType<typeof styleToTextProps>> = {};
     for (const [k, v] of Object.entries(resolvedStyles.byLabel)) {
-      out[k] = {
-        ...styleToTextProps(v),
-        dimColor: readOnly || v.dim,
-      };
+      out[k] = styleToTextProps(v, readOnly);
     }
     return out;
   }, [readOnly, resolvedStyles.byLabel]);
@@ -629,9 +650,9 @@ export const TextArea = ({
             const restOffset = (placeholderLineStartOffsets[i] ?? 0) + 1;
             const rest = phLine.slice(1);
             content = (
-              <Text {...textProps}>
+              <Text {...contentTextProps}>
                 {isCursorRow ? (
-                  <Text key="cur">{`\x1b[7m${firstChar}\x1b[27m`}</Text>
+                  <Text key="cur">{renderCursorCell(firstChar)}</Text>
                 ) : (
                   renderPlaceholderLine(
                     firstChar,
@@ -646,8 +667,8 @@ export const TextArea = ({
             );
           } else {
             content = (
-              <Text {...textProps}>
-                {isCursorRow ? "\x1b[7m \x1b[27m" : " "}
+              <Text {...contentTextProps}>
+                {isCursorRow ? renderCursorCell(" ") : " "}
               </Text>
             );
           }
@@ -725,10 +746,12 @@ export const TextArea = ({
       chunkAbsStart,
       cursorPos,
       cursorVisible,
+      readOnly,
       isCursorAtLineEnd,
       inv,
       showAnyInvisible,
       invisibleProps,
+      textProps,
       labelByChar,
       labelTextProps,
       tabWidth,
@@ -740,7 +763,7 @@ export const TextArea = ({
 
     renderedLines.push(
       renderLine(
-        <Text {...textProps}>
+        <Text {...contentTextProps}>
           {bodyNodes}
           {showNewlineGlyph ? (
             <Text key="nl" {...invisibleProps}>

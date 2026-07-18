@@ -493,7 +493,7 @@ Things to know before shipping. Most are intrinsic to running a rich editor insi
 - **Modifier+Enter detection is terminal-dependent.** `Ctrl+Enter`, `Shift+Enter`, `Alt+Enter` rely on `modifyOtherKeys` / CSI-u sequences. macOS Terminal.app and Windows console don't emit them by default — use iTerm2, WezTerm, Kitty, or Alacritty, or fall back to `Ctrl+J` for newline.
 - **`Alt` on macOS.** Option key inserts special chars (`Opt+B` → `∫`) unless the terminal is set to "Use Option as Meta" (iTerm2: *Profiles → Keys*; Terminal.app: *Profiles → Keyboard → Use Option as Meta key*).
 - **`Tab` is silently swallowed without `onTab`.** No newline, no insert, no error. Provide the handler if you want any Tab behavior.
-- **Read-only remains interactive.** `readOnly` blocks value mutations but intentionally keeps navigation, `onSubmit`, `onTab`, cursor callbacks, and boundary callbacks active. Use `focus={false}` when the textarea should ignore input entirely.
+- **Read-only remains interactive.** `readOnly` blocks value mutations but intentionally keeps navigation, `onSubmit`, `onTab`, cursor callbacks, and boundary callbacks active. Since read-only mode cannot append a line, pressing Down on its final visual row immediately invokes `onLastLineDown` when provided. Use `focus={false}` when the textarea should ignore input entirely.
 - **Multiple focused TextAreas race.** Ink's `useInput` delivers keys to every active hook; two textareas with `focus={true}` will both mutate. Gate via `focus` per instance.
 
 </details>
