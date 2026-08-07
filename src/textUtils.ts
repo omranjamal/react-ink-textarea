@@ -403,7 +403,12 @@ export type VisualRow = {
 
 export const buildVisualRows = (
   lines: readonly string[],
-  lineWidth: number,
+  // Either a single width for every visual row, or a resolver returning the
+  // available content width (in visual columns) for a given (logical line,
+  // chunk/sub-row) pair. A per-chunk resolver lets each sub-row wrap to its
+  // own width when the prefix/suffix decoration width varies between the first
+  // sub-row and its wrapped continuations (or between lines).
+  lineWidthAt: number | ((lineIdx: number, chunkIdx: number) => number),
   cursorLine: number,
   cursorColumn: number,
   initialLineCount: number,
@@ -411,12 +416,17 @@ export const buildVisualRows = (
 ): VisualRow[] => {
   const rows: VisualRow[] = [];
   let absStart = 0;
+  const resolveWidth =
+    typeof lineWidthAt === "function"
+      ? lineWidthAt
+      : (): number => lineWidthAt;
 
   for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
     const lineText = lines[lineIdx]!;
     const lineAbsStart = absStart;
+    const firstWidth = resolveWidth(lineIdx, 0);
 
-    if (lineWidth <= 0 || lineText.length === 0) {
+    if (firstWidth <= 0 || lineText.length === 0) {
       rows.push({
         lineIdx,
         chunkIdx: 0,
@@ -431,6 +441,11 @@ export const buildVisualRows = (
       let chunkSliceStart = 0;
       let chunkIdx = 0;
       let lastChunkVisualWidth = 0;
+
+      // Width for the chunk currently being filled. Re-read after each flush
+      // so wrapped continuations can use a different width than the first row.
+      const widthForCurrentChunk = (): number =>
+        Math.max(1, resolveWidth(lineIdx, chunkIdx));
 
       const flushChunk = (isLast: boolean): void => {
         rows.push({
@@ -458,16 +473,22 @@ export const buildVisualRows = (
 
       if (isAsciiSimple) {
         // Fast path: code-unit slicing equals visual slicing.
-        for (let i = 0; i < lineText.length; i += lineWidth) {
-          chunkBuf = lineText.slice(i, i + lineWidth);
+        let i = 0;
+        while (i < lineText.length) {
+          const w = widthForCurrentChunk();
+          chunkBuf = lineText.slice(i, i + w);
           chunkVisualWidth = chunkBuf.length;
-          flushChunk(i + lineWidth >= lineText.length);
+          i += chunkBuf.length;
+          flushChunk(i >= lineText.length);
         }
       } else {
         for (const seg of segmenter.segment(lineText)) {
           const g = seg.segment;
           const gw = graphemeWidth(g, tabWidth);
-          if (chunkVisualWidth + gw > lineWidth && chunkBuf.length > 0) {
+          if (
+            chunkVisualWidth + gw > widthForCurrentChunk() &&
+            chunkBuf.length > 0
+          ) {
             flushChunk(false);
           }
           chunkBuf += g;
@@ -477,11 +498,13 @@ export const buildVisualRows = (
       }
 
       const isCursorLine = lineIdx === cursorLine;
+      // chunkIdx now equals the chunk count; the last chunk's index is one less.
+      const lastChunkWidth = resolveWidth(lineIdx, Math.max(0, chunkIdx - 1));
       const cursorWantsExtraRow =
         isCursorLine &&
         cursorColumn === lineText.length &&
         cursorColumn > 0 &&
-        lastChunkVisualWidth === lineWidth;
+        lastChunkVisualWidth === lastChunkWidth;
       if (cursorWantsExtraRow) {
         const prev = rows[rows.length - 1]!;
         rows[rows.length - 1] = { ...prev, isLastChunkOfLine: false };

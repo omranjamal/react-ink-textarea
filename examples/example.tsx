@@ -186,6 +186,33 @@ const App = () => {
   const [box2Margin, setBox2Margin] = useState(MARGIN_DEFAULT);
   const box1Ref = useRef<TextAreaHandle>(null);
 
+  // Typing "<vary>" animates the active line's prefix width: an arrow whose
+  // dash shaft grows/shrinks by 5 each tick. Because wrapping re-measures per
+  // line, the caret's line re-wraps live as its prefix width changes.
+  const [varyDashes, setVaryDashes] = useState(0);
+  const varyDirRef = useRef<1 | -1>(1);
+  const varyActive = box1Value.includes("<vary>");
+  useEffect(() => {
+    if (!varyActive) {
+      setVaryDashes(0);
+      return;
+    }
+    const id = setInterval(() => {
+      setVaryDashes((n) => {
+        let next = n + varyDirRef.current; // one dash at a time
+        if (next >= 20) {
+          next = 20;
+          varyDirRef.current = -1;
+        } else if (next <= 0) {
+          next = 0;
+          varyDirRef.current = 1;
+        }
+        return next;
+      });
+    }, 250);
+    return () => clearInterval(id);
+  }, [varyActive]);
+
   const shiftMargin = (
     setter: (updater: (prev: number) => number) => void,
     delta: number,
@@ -222,6 +249,12 @@ const App = () => {
     box1Ref.current?.insert(remaining);
   };
 
+  // Esc instantly toggles a fixed-width marker on the caret's sub-row.
+  const [escPrefix, setEscPrefix] = useState(false);
+  useInput((_input, key) => {
+    if (key.escape) setEscPrefix((v) => !v);
+  });
+
   useInput((_input, key) => {
     if (!pickerOpen) return;
     if (key.upArrow) {
@@ -235,10 +268,17 @@ const App = () => {
     }
   });
 
+  // Live copy of history so the current edit isn't lost when navigating: the
+  // draft is saved back into its slot before moving, and restored on return.
+  const historySlotsRef = useRef<string[]>([...HISTORY]);
   const navigateHistory = (delta: -1 | 1) => {
     setHistoryIdx((idx) => {
-      const next = Math.max(0, Math.min(HISTORY.length - 1, idx + delta));
-      setBox1Value(HISTORY[next]!);
+      historySlotsRef.current[idx] = box1Value; // save current edit
+      const next = Math.max(
+        0,
+        Math.min(historySlotsRef.current.length - 1, idx + delta),
+      );
+      setBox1Value(historySlotsRef.current[next] ?? "");
       return next;
     });
   };
@@ -297,7 +337,37 @@ const App = () => {
           onLastLineDown: () => navigateHistory(1),
           labels,
           styles,
-          linePrefix: LineNumberPrefix,
+          linePrefix: (props) => {
+            // Anchor markers to the caret's logical line, FIRST sub-row
+            // (continuationIndex 0) — never the active sub-row. A
+            // width-changing decoration on the active sub-row is circular (its
+            // width moves the caret across a wrap boundary, which moves the
+            // decoration), leaving a dead zone that can't reflow. Anchoring to
+            // a fixed sub-row breaks the loop: only sub-row 0 is squeezed and
+            // the rest reflow cleanly, regardless of where the caret sits.
+            const onCaretLineHead =
+              !props.isVirtualLine &&
+              props.continuationIndex === 0 &&
+              props.lineNumber === box1Cursor[0];
+            return (
+              <Box flexDirection="row">
+                <LineNumberPrefix {...props} />
+                {onCaretLineHead && escPrefix ? (
+                  <Text color="cyan">{"===============>>"}</Text>
+                ) : null}
+                {onCaretLineHead && varyActive ? (
+                  <Text color="yellow">{"-".repeat(varyDashes) + ">"}</Text>
+                ) : null}
+              </Box>
+            );
+          },
+          lineSuffix: ({ lineNumber, isLastChunkOfLine }) => {
+            if (!isLastChunkOfLine) return null; // once per logical line
+            const t = box1Value.split("\n")[lineNumber] ?? "";
+            if (/tomato/i.test(t)) return <Text> 🍅</Text>;
+            if (/potato/i.test(t)) return <Text> 🥔</Text>;
+            return null;
+          },
           keybindings: box1Keybindings,
         }}
       />
