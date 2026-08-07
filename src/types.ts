@@ -36,10 +36,44 @@ export type TStyleProps = {
   readonly bgColor?: string;
 };
 
+// A function-driven ("dynamic") label style. `fn` is called once per
+// grapheme of a labeled run and returns the style for that grapheme.
+export type TStyleFnContext<TMeta = unknown> = {
+  readonly label: string;
+  // Grapheme index measured from the 0th grapheme of the label run.
+  readonly index: number;
+  // Total grapheme count of the label run.
+  readonly length: number;
+  // Per-occurrence state, seeded from `initialMeta`.
+  readonly meta: TMeta;
+};
+export type TStyleFnResult<TMeta = unknown> = TStyleProps & {
+  // When set (ms), the run re-renders after this delay.
+  readonly nextAfter?: number;
+  // When set, becomes `meta` on the next call for this run.
+  readonly nextMeta?: TMeta;
+};
+export type TStyleFn<TMeta = unknown> = (
+  ctx: TStyleFnContext<TMeta>,
+) => TStyleFnResult<TMeta> | undefined | null | false;
+// PERFORMANCE CAVEAT: an dynamic label renders one <Text> node per grapheme
+// of its matched runs (instead of one coalesced <Text> per run) and drives a
+// timer-based re-render loop. Use it sparingly — reserve it for short,
+// deliberately dynamic spans (e.g. a slash-command), not large bodies of
+// text. Static `TStyleProps` labels have no such cost.
+export type TDynamicStyle<TMeta = unknown> = {
+  readonly fn: TStyleFn<TMeta>;
+  readonly initialMeta?: TMeta;
+};
+
 export type TStyles = {
   readonly text?: TStyleProps;
   readonly invisibleCharacter?: TStyleProps;
-  readonly [labelName: string]: TStyleProps | undefined;
+  // `any` (not `unknown`) so a label can carry a TDynamicStyle with a
+  // concrete meta type; `fn` is contravariant in meta, so `unknown` here
+  // would reject every specifically-typed dynamic style.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  readonly [labelName: string]: TStyleProps | TDynamicStyle<any> | undefined;
 };
 
 export type TLabelFn = (match: RegExpMatchArray) => string | undefined;

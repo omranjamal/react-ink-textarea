@@ -5,6 +5,20 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Dynamic (function-driven) label styles. A `styles` entry may be a
+  `{ fn, initialMeta? }` object instead of a static `TStyleProps`; `fn` is
+  called per grapheme of a labeled run with `{ label, index, length, meta }` and
+  returns that grapheme's style. Returning `nextAfter` (ms, floored at 10) drives
+  a re-render and `nextMeta` carries generic per-occurrence state, enabling
+  animation (e.g. a rotating rainbow). Runs render one `<Text>` per grapheme and
+  the timer loop runs only while focused. New exported types: `TDynamicStyle`,
+  `TStyleFn`, `TStyleFnContext`, `TStyleFnResult`. Demonstrated by `/ultra` in
+  the example. ([#15](https://github.com/omranjamal/react-ink-textarea/issues/15))
+
 ## [0.4.0] - 2026-08-07
 
 ### Added

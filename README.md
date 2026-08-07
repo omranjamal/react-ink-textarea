@@ -1,4 +1,5 @@
 # react-ink-textarea
+
 > A multiline textarea component for [Ink](https://github.com/vadimdemedes/ink)
 
 [<img alt="GitHub Issues or Pull Requests" src="https://img.shields.io/github/issues/omranjamal/react-ink-textarea">](https://github.com/omranjamal/react-ink-textarea/issues) [<img alt="NPM Downloads" src="https://img.shields.io/npm/dw/react-ink-textarea">](https://www.npmjs.com/package/react-ink-textarea) [<img alt="NPM Version" src="https://img.shields.io/npm/v/react-ink-textarea">](https://www.npmjs.com/package/react-ink-textarea) [<img alt="NPM License" src="https://img.shields.io/npm/l/react-ink-textarea">](https://github.com/omranjamal/react-ink-textarea/blob/main/LICENSE) [<img alt="GitHub forks" src="https://img.shields.io/github/forks/omranjamal/react-ink-textarea?style=flat">](https://github.com/omranjamal/react-ink-textarea/network/members)
@@ -10,7 +11,7 @@ Build rich CLI forms with a full-featured textarea that supports multi-line edit
 <br/>
 <br/>
 
-**Sponsored By**  
+**Sponsored By**
 
 [<img width="248" height="104" alt="sponsor (1)" src="https://github.com/user-attachments/assets/f3fc6625-af38-435e-acf9-09b9cbc7a98c" />](https://dbctx.io?utm_source=readme&utm_campaign=react-ink-textarea)
 
@@ -38,7 +39,7 @@ Build rich CLI forms with a full-featured textarea that supports multi-line edit
 
 - 🎨 Polished feel — blinking cursor that pauses while typing, active-line highlight, multi-line placeholder, optional whitespace glyphs.
 - 🪪 Custom gutter via `linePrefix` render-prop (plus a drop-in `<LineNumberPrefix />`) and a matching `lineSuffix` for right-side per-line context.
-- 🌈 Regex (or function) labels with per-label styles; cursor reports the label under it.
+- 🌈 Regex (or function) labels with per-label styles; cursor reports the label under it. Styles can be dynamic (function-driven, per-grapheme) — usable for animation such as a rotating rainbow.
 - ⌨️ Readline keybindings, configurable per chord. `Tab` is a callback. Grouped undo and bracketed paste.
 - 🌐 Unicode-correct: grapheme cursor, visual-width wrapping, real tab expansion, CRLF normalized.
 - 📐 Built-in viewport virtualization; auto-scroll; resize-aware.
@@ -163,7 +164,7 @@ import { TextArea, LineNumber } from "react-ink-textarea";
     isVirtualLine,
   }) =>
     isContinuationLine ? (
-      <Text color="gray">  ↳ </Text>
+      <Text color="gray"> ↳ </Text>
     ) : (
       <Text>
         <LineNumber
@@ -256,6 +257,44 @@ const Editor = () => {
 };
 ```
 
+#### Dynamic (function-driven) label styles
+
+A `styles` entry can be a **function** instead of a static object. Its `fn` is
+called once per grapheme of a labeled run and returns the style for that
+grapheme, so the run's appearance can depend on position — or on time. It can
+also drive its own re-renders: return `nextAfter` (ms) to schedule the next
+frame and `nextMeta` to carry state into it. `meta` is generic and seeded from
+`initialMeta`, kept **per occurrence** (each matched run animates
+independently). The re-render loop runs only while the textarea is `focus`ed
+and `nextAfter` is floored at 10ms.
+
+```tsx
+import { TextArea, type TStyles, type TDynamicStyle } from "react-ink-textarea";
+
+// A rotating rainbow over the labeled text.
+const ultra: TDynamicStyle<{ phase: number }> = {
+  fn: ({ index, meta }) => ({
+    color: hslToHex((meta.phase * 12 + index * 18) % 360, 100, 65),
+    nextAfter: 80, // re-render this run in 80ms
+    nextMeta: { phase: meta.phase + 1 }, // advance the hue offset
+  }),
+  initialMeta: { phase: 0 },
+};
+
+const styles: TStyles = { ultra };
+```
+
+The fn's context is `{ label, index, length, meta }` where `index` is the
+grapheme index from the start of the run and `length` is the run's grapheme
+count. Returning a falsey value for a grapheme falls back to the label's static
+style (or plain text).
+
+> **⚠️ Performance:** a dynamic label renders one `<Text>` node **per grapheme**
+> of its runs (instead of one coalesced node per run) and drives a timer-based
+> re-render loop. Use it sparingly — reserve it for short, deliberately dynamic
+> spans (e.g. a slash-command), not large bodies of text. Static `TStyleProps`
+> labels have no such cost.
+
 ### 5. Multi-field form with focus chaining
 
 Boundary callbacks let you escape the textarea cleanly: ↑ on the first row jumps to the field above, ↓ past the last line jumps below, and ←/→ at the absolute ends do the same horizontally.
@@ -323,7 +362,9 @@ const Composer = () => {
         disableArrowNavigation={open}
         keybindings={open ? { Enter: false } : undefined}
         onTab={(shift) =>
-          setSel((i) => (i + (shift ? -1 : 1) + COMMANDS.length) % COMMANDS.length)
+          setSel(
+            (i) => (i + (shift ? -1 : 1) + COMMANDS.length) % COMMANDS.length,
+          )
         }
       />
       {open && (
@@ -378,39 +419,39 @@ const CodeEditor = () => {
 
 ## Props
 
-| Prop                    | Type                                                                                        | Description                                                                                                                               |
-| ----------------------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `focus`                 | `boolean`                                                                                   | Whether the textarea is focused and receiving keyboard input.                                                                             |
-| `onSubmit`              | `(value: string) => void`                                                                   | Called when the user presses **Enter**. Receives the full text.                                                                           |
-| `placeholder`           | `string`                                                                                    | Placeholder text shown when the textarea is empty.                                                                                        |
-| `linePrefix`            | `ReactNode \| (props: TLinePrefixProps) => ReactNode`                                       | Optional prefix rendered before each line. The function form receives `{ lineNumber, totalLines, isActiveLine, isVirtualLine, isContinuationLine, continuationIndex, isLastChunkOfLine }`. Use for line numbers, gutters, borders, etc. |
-| `lineSuffix`            | `ReactNode \| (props: TLineSuffixProps) => ReactNode`                                       | Optional suffix rendered after each line, pinned to the right edge. Same props as `linePrefix` (`TLineSuffixProps` is an alias of `TLinePrefixProps`). Use for per-line context info; gate on `isLastChunkOfLine` to render once per logical line. |
-| `highlightActiveLine`   | `boolean`                                                                                   | When `true`, the active line is highlighted with a subtle background color. Defaults to `false`.                                          |
-| `activeLineColor`       | `string`                                                                                    | Background color for the active line highlight. Defaults to no color.                                                                     |
-| `cursorInterval`        | `number`                                                                                    | Cursor blink interval in milliseconds. Defaults to `500`.                                                                                 |
-| `typingPause`           | `number`                                                                                    | Milliseconds to wait after typing before resuming cursor blink. Defaults to `450`.                                                        |
-| `disableCursorBlink`    | `boolean`                                                                                   | When `true`, fully disables cursor blinking — no blink timer runs and the cursor renders as a steady block. Defaults to `false`.          |
-| `maxUndo`               | `number`                                                                                    | Maximum number of undo steps to retain. Defaults to `128`.                                                                                |
-| `undoGroupDelay`        | `number`                                                                                    | Milliseconds to group consecutive edits into a single undo step. Defaults to `750`.                                                       |
-| `autoNewLineLimit`      | `number`                                                                                    | Maximum number of empty lines allowed after the last line with content. Only applies to Down arrow navigation. Defaults to `3`.           |
-| `disableArrowNavigation` | `boolean`                                                                                  | When `true`, disables cursor movement via arrow keys (and word/line jumps). Useful for implementing suggestion pickers. Defaults to `false`.                    |
-| `keybindings`           | `Partial<Record<TKeybinding, boolean>>`                                                     | Per-chord enable/disable map. Merged over defaults (all `true`). Set a chord to `false` to swallow it. `disableArrowNavigation: true` additionally forces all nav chords off. See **Keybinding Toggles** below.        |
-| `initialLineCount`      | `number`                                                                                    | Number of lines to display initially. The textarea will maintain at least this many lines. Defaults to `2`.                               |
-| `viewportLines`         | `number`                                                                                    | Maximum number of visual rows rendered at once. The textarea virtualizes rendering and auto-scrolls to keep the cursor visible. Defaults to `floor(stdout.rows * 0.5)` so blink re-renders don't scroll-jank tall buffers when the frame exceeds the terminal viewport. Pass an explicit number to override; `Infinity` renders every row. |
-| `tabWidth`              | `number`                                                                                    | Visual width of `\t` characters in cells. Tabs render as `tabWidth` spaces (or `→` + spaces with `showInvisibles.tab`). The stored value keeps `\t`. Defaults to `4`. |
-| `value`                 | `string`                                                                                    | **Controlled mode**: The current value of the textarea. When provided, component operates in controlled mode.                             |
-| `cursorPosition`        | `[line: number, column: number]`                                                            | **Controlled mode**: The current cursor position as a `[line, column]` tuple. Use with `value` for full control.                          |
-| `onChange`              | `(value: string) => void`                                                                   | **Controlled mode**: Called when the value changes.                                                                                       |
-| `onCursorChange`        | `(position: [line, column], type: string, chunkIndex: number) => void`                      | **Controlled mode**: Called when the cursor moves. `type` is the label at the cursor (`"text"` if no label matches); `chunkIndex` is the zero-based index of the labeled segment the cursor is in. |
-| `onFirstLineUp`         | `() => void`                                                                                | Called when Up arrow is pressed on the first visual row. Useful for moving focus out of the textarea.                                     |
-| `onLastLineDown`        | `() => void`                                                                                | Called when Down arrow is pressed on the last line and trailing-empty-line limit is reached. Useful for moving focus out.                 |
-| `onFirstCharacterLeft`  | `() => void`                                                                                | Called when Left arrow is pressed at the very start of the value (`cursor === 0`). Useful for moving focus to a previous field.            |
-| `onLastCharacterRight`  | `() => void`                                                                                | Called when Right arrow is pressed at the very end of the value (`cursor === value.length`). Useful for moving focus to a next field.       |
-| `onTab`                 | `(shift: boolean) => void`                                                                  | Called when Tab is pressed. `shift` is `true` for Shift+Tab. Without this prop, Tab is silently swallowed (no value mutation).            |
-| `onDimensions`          | `(width: number) => void`                                                                   | Called with the measured content width whenever it changes.                                                                               |
-| `showInvisibles`        | `boolean \| { space?: boolean; tab?: boolean; newline?: boolean }`                          | Render whitespace glyphs (`·` for space, `→` for tab, `↵` for newline). Defaults to `false`.                                              |
-| `styles`                | `{ text?, invisibleCharacter?, [labelName]? }` of `TStyleProps`                             | Style overrides for the default text run, invisible glyphs, and any user-defined labels. `color` and `bgColor` accept any value Ink's `<Text>` accepts — see the [Ink color reference](https://github.com/vadimdemedes/ink#color). |
-| `labels`                | `readonly { pattern: RegExp; label: string \| ((match: RegExpMatchArray) => string \| undefined) }[]` | Array of label rules. Each rule's `pattern` is matched against the value; matches receive the rule's `label`. Use a function form to allowlist matches — return `undefined` to leave a match unlabeled. First rule wins on overlap. |
+| Prop                     | Type                                                                                                  | Description                                                                                                                                                                                                                                                                                                                                |
+| ------------------------ | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `focus`                  | `boolean`                                                                                             | Whether the textarea is focused and receiving keyboard input.                                                                                                                                                                                                                                                                              |
+| `onSubmit`               | `(value: string) => void`                                                                             | Called when the user presses **Enter**. Receives the full text.                                                                                                                                                                                                                                                                            |
+| `placeholder`            | `string`                                                                                              | Placeholder text shown when the textarea is empty.                                                                                                                                                                                                                                                                                         |
+| `linePrefix`             | `ReactNode \| (props: TLinePrefixProps) => ReactNode`                                                 | Optional prefix rendered before each line. The function form receives `{ lineNumber, totalLines, isActiveLine, isVirtualLine, isContinuationLine, continuationIndex, isLastChunkOfLine }`. Use for line numbers, gutters, borders, etc.                                                                                                    |
+| `lineSuffix`             | `ReactNode \| (props: TLineSuffixProps) => ReactNode`                                                 | Optional suffix rendered after each line, pinned to the right edge. Same props as `linePrefix` (`TLineSuffixProps` is an alias of `TLinePrefixProps`). Use for per-line context info; gate on `isLastChunkOfLine` to render once per logical line.                                                                                         |
+| `highlightActiveLine`    | `boolean`                                                                                             | When `true`, the active line is highlighted with a subtle background color. Defaults to `false`.                                                                                                                                                                                                                                           |
+| `activeLineColor`        | `string`                                                                                              | Background color for the active line highlight. Defaults to no color.                                                                                                                                                                                                                                                                      |
+| `cursorInterval`         | `number`                                                                                              | Cursor blink interval in milliseconds. Defaults to `500`.                                                                                                                                                                                                                                                                                  |
+| `typingPause`            | `number`                                                                                              | Milliseconds to wait after typing before resuming cursor blink. Defaults to `450`.                                                                                                                                                                                                                                                         |
+| `disableCursorBlink`     | `boolean`                                                                                             | When `true`, fully disables cursor blinking — no blink timer runs and the cursor renders as a steady block. Defaults to `false`.                                                                                                                                                                                                           |
+| `maxUndo`                | `number`                                                                                              | Maximum number of undo steps to retain. Defaults to `128`.                                                                                                                                                                                                                                                                                 |
+| `undoGroupDelay`         | `number`                                                                                              | Milliseconds to group consecutive edits into a single undo step. Defaults to `750`.                                                                                                                                                                                                                                                        |
+| `autoNewLineLimit`       | `number`                                                                                              | Maximum number of empty lines allowed after the last line with content. Only applies to Down arrow navigation. Defaults to `3`.                                                                                                                                                                                                            |
+| `disableArrowNavigation` | `boolean`                                                                                             | When `true`, disables cursor movement via arrow keys (and word/line jumps). Useful for implementing suggestion pickers. Defaults to `false`.                                                                                                                                                                                               |
+| `keybindings`            | `Partial<Record<TKeybinding, boolean>>`                                                               | Per-chord enable/disable map. Merged over defaults (all `true`). Set a chord to `false` to swallow it. `disableArrowNavigation: true` additionally forces all nav chords off. See **Keybinding Toggles** below.                                                                                                                            |
+| `initialLineCount`       | `number`                                                                                              | Number of lines to display initially. The textarea will maintain at least this many lines. Defaults to `2`.                                                                                                                                                                                                                                |
+| `viewportLines`          | `number`                                                                                              | Maximum number of visual rows rendered at once. The textarea virtualizes rendering and auto-scrolls to keep the cursor visible. Defaults to `floor(stdout.rows * 0.5)` so blink re-renders don't scroll-jank tall buffers when the frame exceeds the terminal viewport. Pass an explicit number to override; `Infinity` renders every row. |
+| `tabWidth`               | `number`                                                                                              | Visual width of `\t` characters in cells. Tabs render as `tabWidth` spaces (or `→` + spaces with `showInvisibles.tab`). The stored value keeps `\t`. Defaults to `4`.                                                                                                                                                                      |
+| `value`                  | `string`                                                                                              | **Controlled mode**: The current value of the textarea. When provided, component operates in controlled mode.                                                                                                                                                                                                                              |
+| `cursorPosition`         | `[line: number, column: number]`                                                                      | **Controlled mode**: The current cursor position as a `[line, column]` tuple. Use with `value` for full control.                                                                                                                                                                                                                           |
+| `onChange`               | `(value: string) => void`                                                                             | **Controlled mode**: Called when the value changes.                                                                                                                                                                                                                                                                                        |
+| `onCursorChange`         | `(position: [line, column], type: string, chunkIndex: number) => void`                                | **Controlled mode**: Called when the cursor moves. `type` is the label at the cursor (`"text"` if no label matches); `chunkIndex` is the zero-based index of the labeled segment the cursor is in.                                                                                                                                         |
+| `onFirstLineUp`          | `() => void`                                                                                          | Called when Up arrow is pressed on the first visual row. Useful for moving focus out of the textarea.                                                                                                                                                                                                                                      |
+| `onLastLineDown`         | `() => void`                                                                                          | Called when Down arrow is pressed on the last line and trailing-empty-line limit is reached. Useful for moving focus out.                                                                                                                                                                                                                  |
+| `onFirstCharacterLeft`   | `() => void`                                                                                          | Called when Left arrow is pressed at the very start of the value (`cursor === 0`). Useful for moving focus to a previous field.                                                                                                                                                                                                            |
+| `onLastCharacterRight`   | `() => void`                                                                                          | Called when Right arrow is pressed at the very end of the value (`cursor === value.length`). Useful for moving focus to a next field.                                                                                                                                                                                                      |
+| `onTab`                  | `(shift: boolean) => void`                                                                            | Called when Tab is pressed. `shift` is `true` for Shift+Tab. Without this prop, Tab is silently swallowed (no value mutation).                                                                                                                                                                                                             |
+| `onDimensions`           | `(width: number) => void`                                                                             | Called with the measured content width whenever it changes.                                                                                                                                                                                                                                                                                |
+| `showInvisibles`         | `boolean \| { space?: boolean; tab?: boolean; newline?: boolean }`                                    | Render whitespace glyphs (`·` for space, `→` for tab, `↵` for newline). Defaults to `false`.                                                                                                                                                                                                                                               |
+| `styles`                 | `{ text?, invisibleCharacter?, [labelName]? }` of `TStyleProps`                                       | Style overrides for the default text run, invisible glyphs, and any user-defined labels. `color` and `bgColor` accept any value Ink's `<Text>` accepts — see the [Ink color reference](https://github.com/vadimdemedes/ink#color).                                                                                                         |
+| `labels`                 | `readonly { pattern: RegExp; label: string \| ((match: RegExpMatchArray) => string \| undefined) }[]` | Array of label rules. Each rule's `pattern` is matched against the value; matches receive the rule's `label`. Use a function form to allowlist matches — return `undefined` to leave a match unlabeled. First rule wins on overlap.                                                                                                        |
 
 ## Imperative API (ref)
 
@@ -433,34 +474,34 @@ const Composer = () => {
 };
 ```
 
-| Method                  | Description                                                                                  |
-| ----------------------- | -------------------------------------------------------------------------------------------- |
-| `insert(text: string)`  | Insert `text` at the current cursor and advance it past the inserted text. Empty string is a no-op. |
+| Method                 | Description                                                                                         |
+| ---------------------- | --------------------------------------------------------------------------------------------------- |
+| `insert(text: string)` | Insert `text` at the current cursor and advance it past the inserted text. Empty string is a no-op. |
 
 ## Keybindings
 
-| Key             | Action                         |
-| --------------- | ------------------------------ |
-| `Ctrl+J`        | Insert newline                 |
-| `Ctrl+Enter`    | Insert newline                 |
-| `Shift+Enter`   | Insert newline                 |
-| `Alt+Enter`     | Insert newline (Option+Enter)  |
-| `Enter`         | Submit                         |
-| `↑` / `↓`       | Move cursor between lines      |
-| `←` / `→`       | Move cursor left / right       |
-| `Opt+←`         | Jump to previous word          |
-| `Opt+→`         | Jump to next word              |
-| `Ctrl+A`        | Start of current line          |
-| `Ctrl+E`        | End of current line            |
-| `Ctrl+W`        | Delete word before cursor      |
+| Key             | Action                                                                                                            |
+| --------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `Ctrl+J`        | Insert newline                                                                                                    |
+| `Ctrl+Enter`    | Insert newline                                                                                                    |
+| `Shift+Enter`   | Insert newline                                                                                                    |
+| `Alt+Enter`     | Insert newline (Option+Enter)                                                                                     |
+| `Enter`         | Submit                                                                                                            |
+| `↑` / `↓`       | Move cursor between lines                                                                                         |
+| `←` / `→`       | Move cursor left / right                                                                                          |
+| `Opt+←`         | Jump to previous word                                                                                             |
+| `Opt+→`         | Jump to next word                                                                                                 |
+| `Ctrl+A`        | Start of current line                                                                                             |
+| `Ctrl+E`        | End of current line                                                                                               |
+| `Ctrl+W`        | Delete word before cursor                                                                                         |
 | `Ctrl+U`        | Delete to start of line. At column 0, joins with previous line (matches Cmd+Backspace mapping in iTerm2/ghostty). |
-| `Ctrl+K`        | Delete to end of line          |
-| `Backspace`     | Delete character before cursor |
-| `Delete`        | Delete character before cursor (same as `Backspace`) |
-| `Opt+Backspace` | Delete word before cursor      |
-| `Cmd+Backspace` | Delete to start of line (same as `Ctrl+U`; gated by the `Ctrl+U` toggle) |
-| `Ctrl+Z`        | Undo (up to 128 steps)         |
-| `Ctrl+Y`        | Redo                           |
+| `Ctrl+K`        | Delete to end of line                                                                                             |
+| `Backspace`     | Delete character before cursor                                                                                    |
+| `Delete`        | Delete character before cursor (same as `Backspace`)                                                              |
+| `Opt+Backspace` | Delete word before cursor                                                                                         |
+| `Cmd+Backspace` | Delete to start of line (same as `Ctrl+U`; gated by the `Ctrl+U` toggle)                                          |
+| `Ctrl+Z`        | Undo (up to 128 steps)                                                                                            |
+| `Ctrl+Y`        | Redo                                                                                                              |
 
 > On macOS, `Alt` chords are pressed via the **Option** (`⌥`) key.
 
@@ -473,38 +514,38 @@ Pass a `keybindings` map to disable individual chords. Keys are the chord string
   focus
   onSubmit={onSubmit}
   keybindings={{
-    "Ctrl+Z": false,      // disable undo
+    "Ctrl+Z": false, // disable undo
     "Shift+Enter": false, // disable Shift+Enter newline (other newline chords still work)
-    "Alt+B": false,       // disable previous-word jump
+    "Alt+B": false, // disable previous-word jump
   }}
 />
 ```
 
 The full chord catalog (every key is a `TKeybinding`):
 
-| Chord            | Action                            |
-| ---------------- | --------------------------------- |
-| `Enter`          | Submit                            |
-| `Ctrl+J`         | Insert newline                    |
-| `Ctrl+Enter`     | Insert newline                    |
-| `Shift+Enter`    | Insert newline                    |
-| `Alt+Enter`      | Insert newline                    |
-| `Up`             | Cursor up                         |
-| `Down`           | Cursor down                       |
-| `Left`           | Cursor left                       |
-| `Right`          | Cursor right                      |
-| `Alt+B`          | Previous word                     |
-| `Alt+F`          | Next word                         |
-| `Ctrl+A`         | Start of line                     |
-| `Ctrl+E`         | End of line                       |
-| `Ctrl+W`         | Delete word before cursor         |
-| `Ctrl+U`         | Delete to start of line           |
-| `Ctrl+K`         | Delete to end of line             |
-| `Backspace`      | Delete grapheme before cursor     |
-| `Delete`         | Delete grapheme before cursor     |
-| `Alt+Backspace`  | Delete word before cursor         |
-| `Ctrl+Z`         | Undo                              |
-| `Ctrl+Y`         | Redo                              |
+| Chord           | Action                        |
+| --------------- | ----------------------------- |
+| `Enter`         | Submit                        |
+| `Ctrl+J`        | Insert newline                |
+| `Ctrl+Enter`    | Insert newline                |
+| `Shift+Enter`   | Insert newline                |
+| `Alt+Enter`     | Insert newline                |
+| `Up`            | Cursor up                     |
+| `Down`          | Cursor down                   |
+| `Left`          | Cursor left                   |
+| `Right`         | Cursor right                  |
+| `Alt+B`         | Previous word                 |
+| `Alt+F`         | Next word                     |
+| `Ctrl+A`        | Start of line                 |
+| `Ctrl+E`        | End of line                   |
+| `Ctrl+W`        | Delete word before cursor     |
+| `Ctrl+U`        | Delete to start of line       |
+| `Ctrl+K`        | Delete to end of line         |
+| `Backspace`     | Delete grapheme before cursor |
+| `Delete`        | Delete grapheme before cursor |
+| `Alt+Backspace` | Delete word before cursor     |
+| `Ctrl+Z`        | Undo                          |
+| `Ctrl+Y`        | Redo                          |
 
 `disableArrowNavigation: true` additionally forces all nav chords (`Up`, `Down`, `Left`, `Right`, `Alt+B`, `Alt+F`, `Ctrl+A`, `Ctrl+E`) off regardless of the map.
 
@@ -525,7 +566,7 @@ Things to know before shipping. Most are intrinsic to running a rich editor insi
 <summary><b>Keybinding edge cases</b></summary>
 
 - **Modifier+Enter detection is terminal-dependent.** `Ctrl+Enter`, `Shift+Enter`, `Alt+Enter` rely on `modifyOtherKeys` / CSI-u sequences. macOS Terminal.app and Windows console don't emit them by default — use iTerm2, WezTerm, Kitty, or Alacritty, or fall back to `Ctrl+J` for newline.
-- **`Alt` on macOS.** Option key inserts special chars (`Opt+B` → `∫`) unless the terminal is set to "Use Option as Meta" (iTerm2: *Profiles → Keys*; Terminal.app: *Profiles → Keyboard → Use Option as Meta key*).
+- **`Alt` on macOS.** Option key inserts special chars (`Opt+B` → `∫`) unless the terminal is set to "Use Option as Meta" (iTerm2: _Profiles → Keys_; Terminal.app: _Profiles → Keyboard → Use Option as Meta key_).
 - **`Tab` is silently swallowed without `onTab`.** No newline, no insert, no error. Provide the handler if you want any Tab behavior.
 - **`disableArrowNavigation` is not read-only.** Typing still mutates the buffer. Use `focus={false}` for true read-only.
 - **Multiple focused TextAreas race.** Ink's `useInput` delivers keys to every active hook; two textareas with `focus={true}` will both mutate. Gate via `focus` per instance.
@@ -584,7 +625,7 @@ Things to know before shipping. Most are intrinsic to running a rich editor insi
 - **CRLF/CR normalized to LF on paste and controlled values.** `onChange` always reports LF. If your storage layer needs CRLF, convert on save.
 - **`value.length` ≠ visual length.** Tabs count as 1 char regardless of `tabWidth`; emoji count as their UTF-16 code-unit length, not 1 grapheme. Use `Intl.Segmenter` if you need grapheme counts externally.
 - **Out-of-bounds `cursorPosition` is clamped silently.** No throw, no warning — `onCursorChange` reports the clamped value.
-- **Boundary callbacks fire on exact bounds only.** `onFirstLineUp` only fires when the cursor is *on* row 0 and ↑ is pressed; not "the cursor moved past the top." Same for the other three.
+- **Boundary callbacks fire on exact bounds only.** `onFirstLineUp` only fires when the cursor is _on_ row 0 and ↑ is pressed; not "the cursor moved past the top." Same for the other three.
 - **`onSubmit` is sync.** No promise return contract — coordinate async validation in your parent component.
 
 </details>
@@ -603,9 +644,9 @@ Things to know before shipping. Most are intrinsic to running a rich editor insi
 Text wraps to each **visual sub-row's** own `linePrefix`/`lineSuffix` width (measured per row), so a decoration that only widens one sub-row re-wraps just that sub-row. Two things to know:
 
 - **Offscreen rows use a fallback width.** A sub-row's exact width isn't known until it's rendered, so rows outside `viewportLines` wrap against a best-effort width until they scroll in (then re-wrap). Wrapping also settles over a frame or two after a decoration's width changes.
-- **Don't tie a width-changing decoration to the caret's sub-row.** If a decoration's *width* depends on a wrapping-derived flag — most commonly `isActiveLine` (the caret's sub-row) — you create a circular dependency: the width decides how many characters fit, which decides which sub-row the caret lands on, which decides where the decoration renders. When the decoration is wide enough to push the caret across a wrap boundary, there is a **dead zone** — a band of caret columns as wide as the decoration — with **no self-consistent layout** (both placements contradict themselves). The component detects the oscillation and freezes rather than looping ("Maximum update depth"), but the frozen frame is internally inconsistent: a sub-row measured at one width is drawn with the other, so it clips to `…` and the overflow doesn't reflow. This is mathematical, not a bug — no correct frame exists.
+- **Don't tie a width-changing decoration to the caret's sub-row.** If a decoration's _width_ depends on a wrapping-derived flag — most commonly `isActiveLine` (the caret's sub-row) — you create a circular dependency: the width decides how many characters fit, which decides which sub-row the caret lands on, which decides where the decoration renders. When the decoration is wide enough to push the caret across a wrap boundary, there is a **dead zone** — a band of caret columns as wide as the decoration — with **no self-consistent layout** (both placements contradict themselves). The component detects the oscillation and freezes rather than looping ("Maximum update depth"), but the frozen frame is internally inconsistent: a sub-row measured at one width is drawn with the other, so it clips to `…` and the overflow doesn't reflow. This is mathematical, not a bug — no correct frame exists.
 
-  **Fix:** anchor a width-changing decoration to a *stable* target instead of the active sub-row — the caret's **logical line** (`props.continuationIndex === 0 && props.lineNumber === caretLine`), or reserve a **fixed-width slot** whose contents (not width) change. Both keep the decoration's position independent of the reflow it causes, so wrapping stays stable everywhere. Changing width based on `lineNumber`, `isVirtualLine`, `isContinuationLine`, `continuationIndex`, or `totalLines` is fine — those don't depend on the wrap widths. Only `isActiveLine` closes the loop.
+  **Fix:** anchor a width-changing decoration to a _stable_ target instead of the active sub-row — the caret's **logical line** (`props.continuationIndex === 0 && props.lineNumber === caretLine`), or reserve a **fixed-width slot** whose contents (not width) change. Both keep the decoration's position independent of the reflow it causes, so wrapping stays stable everywhere. Changing width based on `lineNumber`, `isVirtualLine`, `isContinuationLine`, `continuationIndex`, or `totalLines` is fine — those don't depend on the wrap widths. Only `isActiveLine` closes the loop.
 
 </details>
 
