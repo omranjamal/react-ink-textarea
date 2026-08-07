@@ -219,6 +219,7 @@ export const TextArea = ({
   onSubmit,
   placeholder,
   linePrefix,
+  lineSuffix,
   cursorInterval = DEFAULT_CURSOR_INTERVAL,
   typingPause = DEFAULT_TYPING_PAUSE,
   maxUndo = DEFAULT_MAX_UNDO,
@@ -510,41 +511,57 @@ export const TextArea = ({
     isContinuationLine: boolean,
     continuationIndex: number,
     isActiveLine: boolean,
+    isLastChunkOfLine: boolean,
   ): ReactNode => {
-    const prefixProps: TLinePrefixProps = {
+    const decorationProps: TLinePrefixProps = {
       lineNumber,
       totalLines: totalLinesArg,
       isActiveLine,
       isVirtualLine,
       isContinuationLine,
       continuationIndex,
+      isLastChunkOfLine,
     };
     const prefix =
-      typeof linePrefix === "function" ? linePrefix(prefixProps) : linePrefix;
+      typeof linePrefix === "function"
+        ? linePrefix(decorationProps)
+        : linePrefix;
+    const suffix =
+      typeof lineSuffix === "function"
+        ? lineSuffix(decorationProps)
+        : lineSuffix;
 
+    const hasPrefix = !!prefix;
+    const hasSuffix = !!suffix;
     const isHighlighted = highlightActiveLine && isActiveLine;
 
-    return prefix ? (
+    // Fast path preserved for the common, undecorated case.
+    if (!hasPrefix && !hasSuffix) {
+      return (
+        <Box
+          key={key}
+          width="100%"
+          backgroundColor={isHighlighted ? activeLineColor : undefined}
+        >
+          <Box ref={ref} flexGrow={1}>
+            {content}
+          </Box>
+        </Box>
+      );
+    }
+
+    return (
       <Box
         key={key}
         width="100%"
         flexDirection="row"
         backgroundColor={isHighlighted ? activeLineColor : undefined}
       >
-        <Box flexShrink={0}>{prefix}</Box>
+        {hasPrefix ? <Box flexShrink={0}>{prefix}</Box> : null}
         <Box ref={ref} flexGrow={1}>
           {content}
         </Box>
-      </Box>
-    ) : (
-      <Box
-        key={key}
-        width="100%"
-        backgroundColor={isHighlighted ? activeLineColor : undefined}
-      >
-        <Box ref={ref} flexGrow={1}>
-          {content}
-        </Box>
+        {hasSuffix ? <Box flexShrink={0}>{suffix}</Box> : null}
       </Box>
     );
   };
@@ -597,6 +614,7 @@ export const TextArea = ({
             false,
             0,
             false,
+            true,
           );
         })}
       </Box>
@@ -649,6 +667,7 @@ export const TextArea = ({
             false,
             0,
             isActive && i === cursorLine,
+            true,
           );
         })}
       </Box>
@@ -702,6 +721,7 @@ export const TextArea = ({
           false,
           0,
           false,
+          false,
         ),
       );
       continue;
@@ -751,6 +771,7 @@ export const TextArea = ({
         isContinuation,
         c,
         isActiveRow,
+        row.isLastChunkOfLine,
       ),
     );
   }

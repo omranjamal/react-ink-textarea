@@ -298,6 +298,13 @@ const App = () => {
           labels,
           styles,
           linePrefix: LineNumberPrefix,
+          lineSuffix: ({ lineNumber, isLastChunkOfLine }) => {
+            if (!isLastChunkOfLine) return null; // once per logical line
+            const t = box1Value.split("\n")[lineNumber] ?? "";
+            if (/tomato/i.test(t)) return <Text> 🍅</Text>;
+            if (/potato/i.test(t)) return <Text> 🥔</Text>;
+            return null;
+          },
           keybindings: box1Keybindings,
         }}
       />

@@ -37,7 +37,7 @@ Build rich CLI forms with a full-featured textarea that supports multi-line edit
 ## Features
 
 - 🎨 Polished feel — blinking cursor that pauses while typing, active-line highlight, multi-line placeholder, optional whitespace glyphs.
-- 🪪 Custom gutter via `linePrefix` render-prop, plus a drop-in `<LineNumberPrefix />`.
+- 🪪 Custom gutter via `linePrefix` render-prop (plus a drop-in `<LineNumberPrefix />`) and a matching `lineSuffix` for right-side per-line context.
 - 🌈 Regex (or function) labels with per-label styles; cursor reports the label under it.
 - ⌨️ Readline keybindings, configurable per chord. `Tab` is a callback. Grouped undo and bracketed paste.
 - 🌐 Unicode-correct: grapheme cursor, visual-width wrapping, real tab expansion, CRLF normalized.
@@ -179,6 +179,38 @@ import { TextArea, LineNumber } from "react-ink-textarea";
   }
 />;
 ```
+
+### 3b. Line suffixes (context info)
+
+`lineSuffix` is the right-side mirror of `linePrefix`: a `ReactNode` or render prop drawn
+**after** each line, pinned to the right edge while text stays left. Use it for per-line
+context — token/char counts, git blame, status badges. It receives the same
+`TLinePrefixProps` (`{ lineNumber, totalLines, isActiveLine, isVirtualLine,
+isContinuationLine, continuationIndex, isLastChunkOfLine }`). Gate on `isLastChunkOfLine` to
+render the suffix once per logical line rather than on every wrapped row.
+
+```tsx
+import { Text } from "ink";
+import { TextArea } from "react-ink-textarea";
+
+const value = "hello\nworld";
+
+<TextArea
+  focus
+  value={value}
+  onSubmit={() => {}}
+  lineSuffix={({ lineNumber, isLastChunkOfLine }) => {
+    if (!isLastChunkOfLine) return null; // once per logical line
+    const len = (value.split("\n")[lineNumber] ?? "").length;
+    return <Text color="gray"> {len}c</Text>;
+  }}
+/>;
+```
+
+Both `linePrefix` and `lineSuffix` are variable width — each sizes to whatever node you
+return — and text wrapping accounts for each line's own prefix/suffix width, even when it
+varies line to line. Widths for rows outside `viewportLines` are approximated with a
+fallback until they scroll into view (same measurement caveat as `linePrefix`).
 
 ### 4. Inline syntax highlighting
 
@@ -349,7 +381,8 @@ const CodeEditor = () => {
 | `focus`                 | `boolean`                                                                                   | Whether the textarea is focused and receiving keyboard input.                                                                             |
 | `onSubmit`              | `(value: string) => void`                                                                   | Called when the user presses **Enter**. Receives the full text.                                                                           |
 | `placeholder`           | `string`                                                                                    | Placeholder text shown when the textarea is empty.                                                                                        |
-| `linePrefix`            | `ReactNode \| (props: TLinePrefixProps) => ReactNode`                                       | Optional prefix rendered before each line. The function form receives `{ lineNumber, totalLines, isActiveLine, isVirtualLine, isContinuationLine, continuationIndex }`. Use for line numbers, gutters, borders, etc. |
+| `linePrefix`            | `ReactNode \| (props: TLinePrefixProps) => ReactNode`                                       | Optional prefix rendered before each line. The function form receives `{ lineNumber, totalLines, isActiveLine, isVirtualLine, isContinuationLine, continuationIndex, isLastChunkOfLine }`. Use for line numbers, gutters, borders, etc. |
+| `lineSuffix`            | `ReactNode \| (props: TLineSuffixProps) => ReactNode`                                       | Optional suffix rendered after each line, pinned to the right edge. Same props as `linePrefix` (`TLineSuffixProps` is an alias of `TLinePrefixProps`). Use for per-line context info; gate on `isLastChunkOfLine` to render once per logical line. |
 | `highlightActiveLine`   | `boolean`                                                                                   | When `true`, the active line is highlighted with a subtle background color. Defaults to `false`.                                          |
 | `activeLineColor`       | `string`                                                                                    | Background color for the active line highlight. Defaults to no color.                                                                     |
 | `cursorInterval`        | `number`                                                                                    | Cursor blink interval in milliseconds. Defaults to `500`.                                                                                 |

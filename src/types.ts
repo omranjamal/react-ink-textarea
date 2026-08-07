@@ -7,9 +7,15 @@ export type TLinePrefixProps = {
   readonly isVirtualLine: boolean;
   readonly isContinuationLine: boolean;
   readonly continuationIndex: number;
+  readonly isLastChunkOfLine: boolean;
 };
 
 export type TLinePrefixFn = (props: TLinePrefixProps) => ReactNode;
+
+// A suffix is decorated with the same per-line information as a prefix.
+export type TLineSuffixProps = TLinePrefixProps;
+
+export type TLineSuffixFn = (props: TLineSuffixProps) => ReactNode;
 
 export type TShowInvisibles =
   | boolean
@@ -77,6 +83,7 @@ export type TextAreaProps = {
   readonly onSubmit: (value: string) => void;
   readonly placeholder?: string;
   readonly linePrefix?: ReactNode | TLinePrefixFn;
+  readonly lineSuffix?: ReactNode | TLineSuffixFn;
   readonly cursorInterval?: number;
   readonly typingPause?: number;
   readonly maxUndo?: number;
