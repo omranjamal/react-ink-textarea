@@ -208,8 +208,10 @@ const value = "hello\nworld";
 ```
 
 Both `linePrefix` and `lineSuffix` are variable width — each sizes to whatever node you
-return — and text wrapping accounts for each line's own prefix/suffix width, even when it
-varies line to line. Widths for rows outside `viewportLines` are approximated with a
+return — and text wrapping accounts for each **sub-row's** own prefix/suffix width. A
+decoration that only widens one sub-row (e.g. a marker on the sub-row the caret is on) re-wraps
+only that sub-row; the rest keep their own width, so you get a natural hanging indent unless you
+pad the continuations yourself. Widths for rows outside `viewportLines` are approximated with a
 fallback until they scroll into view (same measurement caveat as `linePrefix`).
 
 ### 4. Inline syntax highlighting
@@ -592,6 +594,18 @@ Things to know before shipping. Most are intrinsic to running a rich editor insi
 
 - **Rows outside `viewportLines` are not rendered.** Any consumer-side measurement on hidden rows (`useBoxMetrics`, refs in `linePrefix`) won't fire until the row scrolls in.
 - **Wrapping happens at the measured content width.** Constrain via a parent `<Box width={...}>` to wrap at a fixed column; otherwise wraps at `stdout.columns`.
+
+</details>
+
+<details>
+<summary><b>Per-sub-row prefix/suffix width &amp; the "dead zone"</b></summary>
+
+Text wraps to each **visual sub-row's** own `linePrefix`/`lineSuffix` width (measured per row), so a decoration that only widens one sub-row re-wraps just that sub-row. Two things to know:
+
+- **Offscreen rows use a fallback width.** A sub-row's exact width isn't known until it's rendered, so rows outside `viewportLines` wrap against a best-effort width until they scroll in (then re-wrap). Wrapping also settles over a frame or two after a decoration's width changes.
+- **Don't tie a width-changing decoration to the caret's sub-row.** If a decoration's *width* depends on a wrapping-derived flag — most commonly `isActiveLine` (the caret's sub-row) — you create a circular dependency: the width decides how many characters fit, which decides which sub-row the caret lands on, which decides where the decoration renders. When the decoration is wide enough to push the caret across a wrap boundary, there is a **dead zone** — a band of caret columns as wide as the decoration — with **no self-consistent layout** (both placements contradict themselves). The component detects the oscillation and freezes rather than looping ("Maximum update depth"), but the frozen frame is internally inconsistent: a sub-row measured at one width is drawn with the other, so it clips to `…` and the overflow doesn't reflow. This is mathematical, not a bug — no correct frame exists.
+
+  **Fix:** anchor a width-changing decoration to a *stable* target instead of the active sub-row — the caret's **logical line** (`props.continuationIndex === 0 && props.lineNumber === caretLine`), or reserve a **fixed-width slot** whose contents (not width) change. Both keep the decoration's position independent of the reflow it causes, so wrapping stays stable everywhere. Changing width based on `lineNumber`, `isVirtualLine`, `isContinuationLine`, `continuationIndex`, or `totalLines` is fine — those don't depend on the wrap widths. Only `isActiveLine` closes the loop.
 
 </details>
 

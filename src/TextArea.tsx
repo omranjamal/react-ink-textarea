@@ -1,4 +1,4 @@
-import { Box, Text, useBoxMetrics, useStdout } from "ink";
+import { Box, Text, useBoxMetrics, useStdout, measureElement } from "ink";
 import type { DOMElement } from "ink";
 import {
   useRef,
@@ -53,6 +53,11 @@ type ResolvedStyles = {
   invisibleCharacter: TStyleProps;
   byLabel: Record<string, TStyleProps>;
 };
+
+// Absolute backstop on non-converging per-line measurement passes before the
+// layout is frozen (the value-based cycle detector normally catches loops much
+// sooner). Kept well under React's own nested-update limit.
+const MAX_MEASURE_PASSES = 24;
 
 const DEFAULT_TEXT_STYLE: TStyleProps = {};
 const DEFAULT_INVISIBLE_STYLE: TStyleProps = { color: "gray", dim: true };
@@ -346,6 +351,127 @@ export const TextArea = ({
     }
   }, [measuredWidth, onDimensions]);
 
+  // Per-line content-box measurement. A line's content box is flexGrow={1}
+  // between flexShrink={0} prefix/suffix boxes, so its width equals
+  // container − prefix − suffix and is independent of how the text wraps
+  // inside it. Measuring each visible line lets lines whose decoration width
+  // differs wrap to their own width. Lines outside the viewport fall back to
+  // `baseLineWidth` (the widest measured content box ≈ the least-decorated
+  // line), and everything falls back to the single `lineWidth` measurement
+  // before anything has been measured.
+  //
+  // Only engaged when a decoration exists; otherwise the single-width path is
+  // used unchanged. Refs are stable per line index (never callback refs) so
+  // they don't churn `useBoxMetrics` on the shared content box.
+  const measurePerLine = linePrefix != null || lineSuffix != null;
+  const chunkKey = (lineIdx: number, chunkIdx: number): string =>
+    `${lineIdx}:${chunkIdx}`;
+  const chunkRefs = useRef<Map<string, { current: DOMElement | null }>>(
+    new Map(),
+  );
+  const getChunkRef = (
+    lineIdx: number,
+    chunkIdx: number,
+  ): { current: DOMElement | null } => {
+    const key = chunkKey(lineIdx, chunkIdx);
+    let r = chunkRefs.current.get(key);
+    if (!r) {
+      r = { current: null };
+      chunkRefs.current.set(key, r);
+    }
+    return r;
+  };
+  const [chunkWidths, setChunkWidths] = useState<Record<string, number>>({});
+  const [baseLineWidth, setBaseLineWidth] = useState(0);
+  // Guards the measurement effect against non-convergent feedback: when a
+  // decoration's *width* depends on a wrapping-derived flag (e.g. a wider
+  // gutter only on the active subline), measured width <-> wrapping can have no
+  // fixed point and would otherwise re-render forever ("Maximum update depth").
+  //
+  // We detect that by value, not by render bookkeeping (which is unreliable
+  // under concurrent rendering): if the exact set of widths we are about to
+  // apply was already produced within the last few passes, we are cycling —
+  // freeze on the current best-effort layout. A genuinely new layout (an edit,
+  // resize, or animation frame) is never in the recent set, so it always
+  // applies. `measureHardCapRef` is a final backstop for long cycles.
+  const recentLayoutsRef = useRef<string[]>([]);
+  const measureHardCapRef = useRef(0);
+
+  const getChunkWidth = (lineIdx: number, chunkIdx: number): number => {
+    if (!measurePerLine) return lineWidth;
+    const w = chunkWidths[chunkKey(lineIdx, chunkIdx)];
+    if (w != null && w > 0) return w;
+    // Fallback for unmeasured/offscreen rows; 0 before first measurement
+    // means "unwrapped" in buildVisualRows, matching prior behavior.
+    return baseLineWidth > 0 ? baseLineWidth : lineWidth;
+  };
+
+  // Runs after every commit so any render that changes a decoration's width
+  // (value edits, gutter-digit growth, active-line changes, resize) is caught
+  // without a hand-maintained deps list. Convergence (or a change to the
+  // external inputs) resets the pass budget; a run of non-converging passes is
+  // capped so pathological width↔wrapping feedback cannot loop forever.
+  // Passive (not layout) so measureElement reads the layout Ink has already
+  // computed for this frame; a layout effect would read the previous frame's
+  // sizes and never converge while widths are changing.
+  useEffect(() => {
+    if (!measurePerLine) {
+      if (baseLineWidth !== 0) setBaseLineWidth(0);
+      setChunkWidths((prev) => (Object.keys(prev).length ? {} : prev));
+      return;
+    }
+
+    const next: Record<string, number> = {};
+    let base = 0;
+    for (const [key, ref] of chunkRefs.current) {
+      const node = ref.current;
+      if (!node) continue;
+      const { width } = measureElement(node);
+      if (width > 0) {
+        next[key] = width;
+        if (width > base) base = width;
+      }
+    }
+
+    const baseChanged = base !== baseLineWidth;
+    const nextKeys = Object.keys(next);
+    const prevKeys = Object.keys(chunkWidths);
+    const widthsChanged =
+      prevKeys.length !== nextKeys.length ||
+      !nextKeys.every((k) => chunkWidths[k] === next[k]);
+
+    // Converged: nothing to do, and a settled layout forgets its history.
+    if (!baseChanged && !widthsChanged) {
+      recentLayoutsRef.current = [];
+      measureHardCapRef.current = 0;
+      return;
+    }
+
+    // Canonical signature of the layout we are about to apply.
+    const sig =
+      base +
+      "|" +
+      nextKeys
+        .sort()
+        .map((k) => k + ":" + next[k])
+        .join(",");
+
+    // Oscillation: this exact layout was produced within the recent window, or
+    // a long cycle blew the hard cap. Freeze on the current best-effort layout.
+    if (
+      recentLayoutsRef.current.includes(sig) ||
+      measureHardCapRef.current >= MAX_MEASURE_PASSES
+    ) {
+      return;
+    }
+    recentLayoutsRef.current.push(sig);
+    if (recentLayoutsRef.current.length > 8) recentLayoutsRef.current.shift();
+    measureHardCapRef.current += 1;
+
+    if (baseChanged) setBaseLineWidth(base);
+    if (widthsChanged) setChunkWidths(next);
+  });
+
   const { pushUndo, undo, redo, resetMutationTracking } = useUndo({
     maxUndo,
     undoGroupDelay,
@@ -367,13 +493,25 @@ export const TextArea = ({
     () =>
       buildVisualRows(
         lines,
-        lineWidth,
+        getChunkWidth,
         isActive ? cursorLine : -1,
         isActive ? cursorColumn : 0,
         initialLineCount,
         tabWidth,
       ),
-    [lines, lineWidth, isActive, cursorLine, cursorColumn, initialLineCount, tabWidth],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      lines,
+      lineWidth,
+      chunkWidths,
+      baseLineWidth,
+      measurePerLine,
+      isActive,
+      cursorLine,
+      cursorColumn,
+      initialLineCount,
+      tabWidth,
+    ],
   );
 
   useKeyboardInput({
@@ -395,7 +533,7 @@ export const TextArea = ({
     redo,
     resetMutationTracking,
     resetBlink,
-    lineWidth,
+    lineWidth: getChunkWidth(cursorLine, 0),
     visualRows,
   });
 
@@ -535,6 +673,15 @@ export const TextArea = ({
     const hasSuffix = !!suffix;
     const isHighlighted = highlightActiveLine && isActiveLine;
 
+    // Content-box ref. In per-line mode each real (non-virtual) sub-row gets a
+    // stable object ref keyed by (line, chunk) so measureElement can size each
+    // sub-row independently; otherwise the shared `ref` drives useBoxMetrics
+    // for the single-width path.
+    const contentBoxRef =
+      measurePerLine && !isVirtualLine
+        ? getChunkRef(lineNumber, continuationIndex)
+        : ref;
+
     // Fast path preserved for the common, undecorated case.
     if (!hasPrefix && !hasSuffix) {
       return (
@@ -543,7 +690,7 @@ export const TextArea = ({
           width="100%"
           backgroundColor={isHighlighted ? activeLineColor : undefined}
         >
-          <Box ref={ref} flexGrow={1}>
+          <Box ref={contentBoxRef} flexGrow={1}>
             {content}
           </Box>
         </Box>
@@ -558,7 +705,7 @@ export const TextArea = ({
         backgroundColor={isHighlighted ? activeLineColor : undefined}
       >
         {hasPrefix ? <Box flexShrink={0}>{prefix}</Box> : null}
-        <Box ref={ref} flexGrow={1}>
+        <Box ref={contentBoxRef} flexGrow={1}>
           {content}
         </Box>
         {hasSuffix ? <Box flexShrink={0}>{suffix}</Box> : null}
@@ -567,7 +714,12 @@ export const TextArea = ({
   };
 
   const cursorRowIndex = isActive
-    ? visualRowForCursor(visualRows, cursorLine, cursorColumn, lineWidth)
+    ? visualRowForCursor(
+        visualRows,
+        cursorLine,
+        cursorColumn,
+        getChunkWidth(cursorLine, 0),
+      )
     : -1;
 
   const { stdout } = useStdout();
@@ -676,6 +828,24 @@ export const TextArea = ({
 
   const renderedLines: ReactNode[] = [];
 
+  // Locate the cursor's sub-row by chunk boundaries rather than by a uniform
+  // width, since sub-rows of the same line can now have different widths.
+  const cursorLineStartAbs = cursor - cursorColumn;
+  let cursorChunkIdx = 0;
+  let cursorPosInChunk = cursorColumn;
+  if (isActive) {
+    for (const r of visualRows) {
+      if (r.isVirtualLine || r.lineIdx !== cursorLine) continue;
+      const chunkStartCol = r.absStart - cursorLineStartAbs;
+      if (chunkStartCol <= cursorColumn) {
+        cursorChunkIdx = r.chunkIdx;
+        cursorPosInChunk = cursorColumn - chunkStartCol;
+      } else {
+        break;
+      }
+    }
+  }
+
   for (let i = visibleRowStart; i < visibleRowEnd; i++) {
     const row = visualRows[i]!;
     const lineIdx = row.lineIdx;
@@ -684,17 +854,11 @@ export const TextArea = ({
     const lineText = isVirtualLine ? "" : (lines[lineIdx] ?? "");
     const isCursorLine = isActive && !isVirtualLine && lineIdx === cursorLine;
     const isContinuation = c > 0;
-    const cursorVisualRow =
-      isCursorLine && lineWidth > 0 ? Math.floor(cursorColumn / lineWidth) : 0;
-    const isActiveRow = isCursorLine && c === cursorVisualRow;
+    const isActiveRow = isCursorLine && c === cursorChunkIdx;
     const hasTrailingNewline = !isVirtualLine && lineIdx < lines.length - 1;
     const showNewlineGlyph =
       inv.newline && row.isLastChunkOfLine && hasTrailingNewline;
-    const cursorPos = isActiveRow
-      ? lineWidth > 0
-        ? cursorColumn % lineWidth
-        : cursorColumn
-      : -1;
+    const cursorPos = isActiveRow ? cursorPosInChunk : -1;
     const isCursorAtLineEnd = cursorColumn >= lineText.length;
     const chunkAbsStart = row.absStart;
 
@@ -748,7 +912,12 @@ export const TextArea = ({
 
     renderedLines.push(
       renderLine(
-        <Text {...textProps}>
+        // In per-line mode a decoration's width can change a frame before the
+        // re-measure lands; without this the too-wide chunk would be soft-
+        // wrapped by Ink into extra rows. Truncate keeps each chunk on its own
+        // row (it fits exactly once measured), so at worst it clips for one
+        // frame instead of exploding.
+        <Text {...textProps} wrap={measurePerLine ? "truncate" : "wrap"}>
           {bodyNodes}
           {showNewlineGlyph ? (
             <Text key="nl" {...invisibleProps}>
