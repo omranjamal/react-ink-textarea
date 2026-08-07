@@ -27,18 +27,23 @@ import {
   findSegmentIndex,
   buildVisualRows,
   visualRowForCursor,
+  styleToTextProps,
+  isDynamicStyle,
+  type TextProps,
 } from "./textUtils.js";
 import { useCursorState } from "./hooks/useCursorState.js";
 import { useUndo } from "./hooks/useUndo.js";
 import { useCursorBlink } from "./hooks/useCursorBlink.js";
 import { useKeyboardInput } from "./hooks/useKeyboardInput.js";
 import { useViewport } from "./hooks/useViewport.js";
+import { useDynamicStyles } from "./hooks/useDynamicStyles.js";
 import type {
   TextAreaProps,
   TextAreaHandle,
   TLinePrefixProps,
   TStyleProps,
   TStyles,
+  TDynamicStyle,
   TKeybinding,
 } from "./types.js";
 
@@ -52,6 +57,7 @@ type ResolvedStyles = {
   text: TStyleProps;
   invisibleCharacter: TStyleProps;
   byLabel: Record<string, TStyleProps>;
+  dynamicByLabel: Record<string, TDynamicStyle>;
 };
 
 // Absolute backstop on non-converging per-line measurement passes before the
@@ -69,10 +75,15 @@ const mergeStyleProps = (
 
 const resolveStyles = (input: TStyles | undefined): ResolvedStyles => {
   const byLabel: Record<string, TStyleProps> = {};
+  const dynamicByLabel: Record<string, TDynamicStyle> = {};
   if (input) {
     for (const [k, v] of Object.entries(input)) {
       if (k === "text" || k === "invisibleCharacter" || !v) continue;
-      byLabel[k] = { ...v };
+      if (isDynamicStyle(v)) {
+        dynamicByLabel[k] = v;
+      } else {
+        byLabel[k] = { ...v };
+      }
     }
   }
   return {
@@ -82,19 +93,9 @@ const resolveStyles = (input: TStyles | undefined): ResolvedStyles => {
       input?.invisibleCharacter,
     ),
     byLabel,
+    dynamicByLabel,
   };
 };
-
-const styleToTextProps = (s: TStyleProps) => ({
-  color: s.color,
-  bold: s.bold,
-  italic: s.italic,
-  underline: s.underline,
-  strikethrough: s.strikethrough,
-  dimColor: s.dim,
-  inverse: s.inverse,
-  backgroundColor: s.bgColor,
-});
 
 type RenderChunkBodyArgs = {
   chunk: string;
@@ -107,6 +108,7 @@ type RenderChunkBodyArgs = {
   invisibleProps: ReturnType<typeof styleToTextProps>;
   labelByChar: string[];
   labelTextProps: Record<string, ReturnType<typeof styleToTextProps>>;
+  dynamicCharProps: Map<number, TextProps>;
   tabWidth: number;
 };
 
@@ -131,6 +133,7 @@ const renderRowBody = ({
   invisibleProps,
   labelByChar,
   labelTextProps,
+  dynamicCharProps,
   tabWidth,
 }: RenderChunkBodyArgs): ReactNode[] => {
   const nodes: ReactNode[] = [];
@@ -200,6 +203,19 @@ const renderRowBody = ({
           ? " "
           : display
       : display;
+    // Function-driven ("dynamic") labels emit one <Text> per grapheme with
+    // per-cell props, bypassing the run-coalescing buffer. Cursor ANSI is
+    // already baked into cellStr, so it composes with the dynamic props.
+    const dyn = isInv ? undefined : dynamicCharProps.get(chunkAbsStart + i);
+    if (dyn) {
+      flush();
+      nodes.push(
+        <Text key={`d${segIdx++}`} {...dyn}>
+          {cellStr}
+        </Text>,
+      );
+      continue;
+    }
     const key = `${charLabel}|${isInv ? "I" : "T"}`;
     if (key !== bufKey) flush();
     bufKey = key;
@@ -252,7 +268,9 @@ export const TextArea = ({
   labels,
   keybindings,
 }: TextAreaProps & { readonly ref?: Ref<TextAreaHandle> }): ReactNode => {
-  const resolvedKeybindings = useMemo<Readonly<Record<TKeybinding, boolean>>>(() => {
+  const resolvedKeybindings = useMemo<
+    Readonly<Record<TKeybinding, boolean>>
+  >(() => {
     const merged: Record<TKeybinding, boolean> = {
       ...DEFAULT_KEYBINDINGS,
       ...(keybindings ?? {}),
@@ -545,6 +563,18 @@ export const TextArea = ({
     [value, labels],
   );
   const segments = useMemo(() => computeSegments(labelByChar), [labelByChar]);
+
+  // Runs whose label has a function-driven style; only these are dynamic.
+  const dynamicSegments = useMemo(
+    () => segments.filter((s) => resolvedStyles.dynamicByLabel[s.label]),
+    [segments, resolvedStyles.dynamicByLabel],
+  );
+  const dynamicCharProps = useDynamicStyles({
+    isActive,
+    value,
+    segments: dynamicSegments,
+    dynamicByLabel: resolvedStyles.dynamicByLabel,
+  });
 
   const placeholderLabelByChar = useMemo(
     () => computeLabels(placeholder ?? "", labels ?? []),
@@ -903,6 +933,7 @@ export const TextArea = ({
       invisibleProps,
       labelByChar,
       labelTextProps,
+      dynamicCharProps,
       tabWidth,
     });
 
@@ -945,5 +976,9 @@ export const TextArea = ({
     );
   }
 
-  return <Box flexDirection="column" width="100%">{renderedLines}</Box>;
+  return (
+    <Box flexDirection="column" width="100%">
+      {renderedLines}
+    </Box>
+  );
 };

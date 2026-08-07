@@ -11,6 +11,8 @@ import {
   TextArea,
   LineNumberPrefix,
   type TLabels,
+  type TStyles,
+  type TDynamicStyle,
   type TextAreaProps,
   type TextAreaHandle,
 } from "react-ink-textarea";
@@ -20,9 +22,47 @@ const SLASH_COMMANDS = [
   "/track",
   "/transfer",
   "/transact",
+  "/ultra",
   "/help",
   "/quit",
 ];
+
+// HSL (h in degrees, s/l in 0-100) -> "#rrggbb", consumed by the textarea's
+// hex-color path. Local to the example — not part of the library.
+const hslToHex = (h: number, s: number, l: number): string => {
+  const sN = s / 100;
+  const lN = l / 100;
+  const c = (1 - Math.abs(2 * lN - 1)) * sN;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = lN - c / 2;
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  if (h < 60) [r, g, b] = [c, x, 0];
+  else if (h < 120) [r, g, b] = [x, c, 0];
+  else if (h < 180) [r, g, b] = [0, c, x];
+  else if (h < 240) [r, g, b] = [0, x, c];
+  else if (h < 300) [r, g, b] = [x, 0, c];
+  else [r, g, b] = [c, 0, x];
+  const to = (v: number): string =>
+    Math.round((v + m) * 255)
+      .toString(16)
+      .padStart(2, "0");
+  return `#${to(r)}${to(g)}${to(b)}`;
+};
+
+// A dynamic (function-driven) label style: a rotating rainbow. Each grapheme
+// gets a hue offset by its index, and `phase` advances every frame via
+// nextMeta/nextAfter, so the band scrolls. Applied to `/ultra ...` text.
+const ultraStyle: TDynamicStyle<{ phase: number }> = {
+  fn: ({ index, meta }) => ({
+    color: hslToHex((meta.phase * 12 + index * 18) % 360, 100, 65),
+    bold: true,
+    nextAfter: 80,
+    nextMeta: { phase: meta.phase + 1 },
+  }),
+  initialMeta: { phase: 0 },
+};
 
 const PLACEHOLDER = `
 It obviously supports multi-line
@@ -150,11 +190,18 @@ const DemoBox = ({
         />
       </Box>
       {hideStatusline ? null : (
-        <Box paddingX={2} marginLeft={marginLeft} flexDirection="row" gap={2} height={1}>
+        <Box
+          paddingX={2}
+          marginLeft={marginLeft}
+          flexDirection="row"
+          gap={2}
+          height={1}
+        >
           {active ? (
             <Text>
-              {charCount} chars | Line {cursorPos[0] + 1}, Col {cursorPos[1] + 1}{" "}
-              | CURRENT={chunkType} ({chunkIdx}) | W={lineWidth}
+              {charCount} chars | Line {cursorPos[0] + 1}, Col{" "}
+              {cursorPos[1] + 1} | CURRENT={chunkType} ({chunkIdx}) | W=
+              {lineWidth}
               {boundary ? (
                 <Text color="cyan" bold>
                   {" | "}
@@ -260,9 +307,7 @@ const App = () => {
     if (key.upArrow) {
       setPickerSelection((i) => Math.max(0, i - 1));
     } else if (key.downArrow) {
-      setPickerSelection((i) =>
-        Math.min(visiblePickerItems.length - 1, i + 1),
-      );
+      setPickerSelection((i) => Math.min(visiblePickerItems.length - 1, i + 1));
     } else if (key.return) {
       insertSelected();
     }
@@ -294,17 +339,23 @@ const App = () => {
           const has = SLASH_COMMANDS.some((c) =>
             subsequenceMatches(q, c.slice(1)),
           );
-          return has ? "slashCommand" : undefined;
+          if (!has) return undefined;
+          // The /ultra command gets the dynamic (rainbow) label; every other
+          // command keeps the static slashCommand color. Same rule, same
+          // word boundary — it stops at the space, so only the token goes
+          // per-grapheme.
+          return "ultra".startsWith(q) ? "ultra" : "slashCommand";
         },
       },
       { pattern: /@[a-zA-Z]{3,}/g, label: "mention" },
     ],
     [],
   );
-  const styles = useMemo(
+  const styles = useMemo<TStyles>(
     () => ({
       slashCommand: { color: "#ff8800" },
       mention: { color: "blue", bold: true },
+      ultra: ultraStyle,
     }),
     [],
   );
@@ -373,7 +424,13 @@ const App = () => {
       />
 
       {pickerOpen ? (
-        <Box paddingLeft={8} paddingRight={2} marginLeft={box1Margin} marginTop={-1} flexDirection="column">
+        <Box
+          paddingLeft={8}
+          paddingRight={2}
+          marginLeft={box1Margin}
+          marginTop={-1}
+          flexDirection="column"
+        >
           {visiblePickerItems.map((cmd, i) => (
             <Text key={cmd}>
               <Text color={i === pickerSelection ? "cyan" : undefined}>

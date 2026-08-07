@@ -59,6 +59,25 @@ describe("computeLabels", () => {
     expect(out.slice(6)).toEqual(Array(8).fill("text"));
   });
 
+  it("a later rule can label a span a falsey function-label left open", () => {
+    const out = computeLabels("/tomato", [
+      // First rule matches but declines (returns undefined) → span stays open.
+      { pattern: /\/[a-z]+/g, label: () => undefined },
+      // Second rule then claims it.
+      { pattern: /tomato/g, label: "fruit" },
+    ]);
+    // "/" stays text; "tomato" claimed by the second rule.
+    expect(out).toEqual([
+      "text",
+      "fruit",
+      "fruit",
+      "fruit",
+      "fruit",
+      "fruit",
+      "fruit",
+    ]);
+  });
+
   it("multiple rules can map to same label", () => {
     const out = computeLabels("ab12", [
       { pattern: /[a-z]+/g, label: "tok" },

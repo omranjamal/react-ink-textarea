@@ -1,5 +1,5 @@
 import stringWidth from "string-width";
-import type { TLabelRule } from "./types.js";
+import type { TLabelRule, TStyleProps, TDynamicStyle } from "./types.js";
 
 const segmenter = new Intl.Segmenter("en", { granularity: "grapheme" });
 
@@ -182,7 +182,10 @@ export const computeVisualUpCursor = (
     return prev.absStart + Math.min(offsetInCur, prev.text.length);
   }
 
-  const { line: currentLine, column: col } = getCursorLineAndColumn(value, cursor);
+  const { line: currentLine, column: col } = getCursorLineAndColumn(
+    value,
+    cursor,
+  );
   const vRow = Math.floor(col / lineWidth);
   const vCol = col % lineWidth;
 
@@ -291,10 +294,7 @@ export const computeSegments = (labelByChar: string[]): Segment[] => {
   return segs;
 };
 
-export const getLabelAt = (
-  labelByChar: string[],
-  cursor: number,
-): string => {
+export const getLabelAt = (labelByChar: string[], cursor: number): string => {
   if (cursor < 0 || cursor >= labelByChar.length) return "text";
   return labelByChar[cursor]!;
 };
@@ -311,8 +311,112 @@ export const findSegmentIndex = (
   return segments.length;
 };
 
+// Maps a TStyleProps into Ink <Text> props (renames dim -> dimColor,
+// bgColor -> backgroundColor).
+export const styleToTextProps = (s: TStyleProps) => ({
+  color: s.color,
+  bold: s.bold,
+  italic: s.italic,
+  underline: s.underline,
+  strikethrough: s.strikethrough,
+  dimColor: s.dim,
+  inverse: s.inverse,
+  backgroundColor: s.bgColor,
+});
+
+export type TextProps = ReturnType<typeof styleToTextProps>;
+
+// A styles[label] entry is "dynamic" (function-driven) when it carries an
+// `fn`, versus a plain static TStyleProps.
+export const isDynamicStyle = (
+  v: TStyleProps | TDynamicStyle | undefined,
+): v is TDynamicStyle => !!v && typeof (v as TDynamicStyle).fn === "function";
+
+// Per-occurrence identity of a labeled run, keyed by its start offset so
+// separate matches of the same label update independently.
+export const runKeyFor = (label: string, start: number): string =>
+  `${label}@${start}`;
+
+export type DynamicRunTiming = {
+  readonly runKey: string;
+  // Smallest positive nextAfter (ms) requested across the run's graphemes.
+  readonly nextAfter: number;
+  // Last `nextMeta` returned across the run's graphemes (undefined-safe).
+  readonly nextMeta: unknown;
+};
+
+export type DynamicRuns = {
+  // Absolute code-unit start of each dynamic grapheme -> its Ink props.
+  readonly charProps: Map<number, TextProps>;
+  // One entry per run that asked to re-render (had a positive nextAfter).
+  readonly timings: DynamicRunTiming[];
+  // Every live run key this frame (used to prune stale meta/timers).
+  readonly liveRunKeys: Set<string>;
+};
+
+// Lower bound (ms) on a run's re-render delay, regardless of what the style
+// fn returns — a guard against runaway re-render loops.
+export const MIN_NEXT_AFTER_MS = 10;
+
+// Pure derivation: walk every dynamic label run grapheme-by-grapheme,
+// call its style fn, and collect the per-grapheme Ink props plus the
+// re-render timing each run requests. `metaByRun` holds post-first-frame
+// state; runs missing an entry fall back to the style's `initialMeta`.
+export const buildDynamicRuns = (
+  value: string,
+  segments: readonly Segment[],
+  dynamicByLabel: Record<string, TDynamicStyle>,
+  metaByRun: Record<string, unknown>,
+): DynamicRuns => {
+  const charProps = new Map<number, TextProps>();
+  const timings: DynamicRunTiming[] = [];
+  const liveRunKeys = new Set<string>();
+
+  for (const seg of segments) {
+    const dynamic = dynamicByLabel[seg.label];
+    if (!dynamic) continue;
+
+    const runKey = runKeyFor(seg.label, seg.start);
+    liveRunKeys.add(runKey);
+
+    const meta = runKey in metaByRun ? metaByRun[runKey] : dynamic.initialMeta;
+
+    // Grapheme-segment the run's slice so `index`/`length` are grapheme-
+    // based (visually correct for wide chars / combined emoji).
+    const slice = value.slice(seg.start, seg.end);
+    const graphemes: { g: string; offset: number }[] = [];
+    for (const s of segmenter.segment(slice)) {
+      graphemes.push({ g: s.segment, offset: s.index });
+    }
+    const length = graphemes.length;
+
+    let minNextAfter = Infinity;
+    let nextMeta: unknown = meta;
+    for (let index = 0; index < length; index++) {
+      const result = dynamic.fn({ label: seg.label, index, length, meta });
+      if (!result) continue; // falsey -> fall back to static/plain path
+      charProps.set(
+        seg.start + graphemes[index]!.offset,
+        styleToTextProps(result),
+      );
+      if (typeof result.nextAfter === "number" && result.nextAfter > 0) {
+        if (result.nextAfter < minNextAfter) minNextAfter = result.nextAfter;
+      }
+      if ("nextMeta" in result) nextMeta = result.nextMeta;
+    }
+
+    if (minNextAfter !== Infinity) {
+      // Floor the delay so a fn returning a tiny/zero nextAfter can't spin the
+      // re-render loop unbounded.
+      const nextAfter = Math.max(MIN_NEXT_AFTER_MS, minNextAfter);
+      timings.push({ runKey, nextAfter, nextMeta });
+    }
+  }
+
+  return { charProps, timings, liveRunKeys };
+};
+
 import ansiStyles from "ansi-styles";
-import type { TStyleProps } from "./types.js";
 
 export type StyleAnsi = {
   readonly open: string;
@@ -320,25 +424,24 @@ export type StyleAnsi = {
   readonly unsupported: boolean;
 };
 
-const ansiPair = (
-  styler: unknown,
-): { open: string; close: string } | null => {
+const ansiPair = (styler: unknown): { open: string; close: string } | null => {
   if (!styler || typeof styler !== "object") return null;
   const s = styler as { open?: unknown; close?: unknown };
   if (typeof s.open !== "string" || typeof s.close !== "string") return null;
   return { open: s.open, close: s.close };
 };
 
-const resolveColor = (
-  name: string,
-): { open: string; close: string } | null => {
+const resolveColor = (name: string): { open: string; close: string } | null => {
   const named = (ansiStyles.color as unknown as Record<string, unknown>)[name];
   const pair = ansiPair(named);
   if (pair) return pair;
   if (name.startsWith("#")) {
     try {
       const code = ansiStyles.hexToAnsi256(name);
-      return { open: ansiStyles.color.ansi256(code), close: ansiStyles.color.close };
+      return {
+        open: ansiStyles.color.ansi256(code),
+        close: ansiStyles.color.close,
+      };
     } catch {
       return null;
     }
@@ -358,7 +461,10 @@ const resolveBgColor = (
   if (name.startsWith("#")) {
     try {
       const code = ansiStyles.hexToAnsi256(name);
-      return { open: ansiStyles.bgColor.ansi256(code), close: ansiStyles.bgColor.close };
+      return {
+        open: ansiStyles.bgColor.ansi256(code),
+        close: ansiStyles.bgColor.close,
+      };
     } catch {
       return null;
     }
@@ -417,9 +523,7 @@ export const buildVisualRows = (
   const rows: VisualRow[] = [];
   let absStart = 0;
   const resolveWidth =
-    typeof lineWidthAt === "function"
-      ? lineWidthAt
-      : (): number => lineWidthAt;
+    typeof lineWidthAt === "function" ? lineWidthAt : (): number => lineWidthAt;
 
   for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
     const lineText = lines[lineIdx]!;
