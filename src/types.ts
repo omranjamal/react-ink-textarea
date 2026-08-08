@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 export type TLinePrefixProps = {
   readonly lineNumber: number;
   readonly totalLines: number;
-  readonly readOnly: boolean;
+  readonly readOnly?: boolean;
   readonly isActiveLine: boolean;
   readonly isVirtualLine: boolean;
   readonly isContinuationLine: boolean;

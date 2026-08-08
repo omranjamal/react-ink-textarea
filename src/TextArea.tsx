@@ -196,11 +196,12 @@ const renderRowBody = ({
     const key = `${charLabel}|${isInv ? "I" : "T"}`;
     if (isCur && cursorVisible) {
       flush();
+      const textPropsForKey = propsForKey(key);
       nodes.push(
         <Text
           key={`s${segIdx++}`}
-          {...propsForKey(key)}
-          dimColor={readOnly ? false : propsForKey(key)?.dimColor}
+          {...textPropsForKey}
+          dimColor={readOnly ? false : textPropsForKey?.dimColor}
         >
           {renderCursorCell(g === "\t" ? display.charAt(0) : display)}
         </Text>,
@@ -222,13 +223,12 @@ const renderRowBody = ({
   if (cursorPos === chunk.length) {
     const key = "text|T";
     flush();
+    const textPropsForKey = propsForKey(key);
     nodes.push(
       <Text
         key={`s${segIdx++}`}
-        {...propsForKey(key)}
-        dimColor={
-          cursorVisible && readOnly ? false : propsForKey(key)?.dimColor
-        }
+        {...textPropsForKey}
+        dimColor={cursorVisible && readOnly ? false : textPropsForKey?.dimColor}
       >
         {cursorVisible ? renderCursorCell(" ") : " "}
       </Text>,

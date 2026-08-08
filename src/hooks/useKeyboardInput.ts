@@ -165,8 +165,13 @@ export const useKeyboardInput = ({
         resetBlink();
 
         const handleLastLineDown = (): void => {
+          if (readOnly) {
+            if (onLastLineDown) onLastLineDown();
+            else setCursor(value.length);
+            return;
+          }
           const trailingEmpty = countTrailingEmptyLines(value);
-          if (readOnly || trailingEmpty >= autoNewLineLimit) {
+          if (trailingEmpty >= autoNewLineLimit) {
             if (onLastLineDown) onLastLineDown();
             else setCursor(value.length);
             return;
