@@ -397,7 +397,9 @@ const App = () => {
           onMarginShift={(d) => shiftMargin(setBox2Margin, d)}
           textAreaProps={{
             onSubmit: setSubmitted,
-            placeholder: "Second textarea — Tab cycles back.",
+            value:
+              "This textarea is read-only.\nYou can navigate, submit, or press Tab,\nbut editing and paste are blocked.",
+            readOnly: true,
             autoNewLineLimit: 3,
             viewportLines: 5,
             initialLineCount: 3,
@@ -405,8 +407,10 @@ const App = () => {
             disableCursorBlink: true,
             labels,
             styles,
-            linePrefix: ({ isActiveLine }) => (
-              <Text color={isActiveLine ? "cyan" : "gray"}>│ </Text>
+            linePrefix: ({ isActiveLine, readOnly }) => (
+              <Text color={isActiveLine ? "cyan" : "gray"} dimColor={readOnly}>
+                │{" "}
+              </Text>
             ),
           }}
         />
