@@ -1,7 +1,7 @@
 # react-ink-textarea
 > A multiline textarea component for [Ink](https://github.com/vadimdemedes/ink)
 
-[<img alt="GitHub Issues or Pull Requests" src="https://img.shields.io/github/issues/omranjamal/react-ink-textarea">](https://github.com/omranjamal/react-ink-textarea/issues) [<img alt="NPM Downloads" src="https://img.shields.io/npm/dw/react-ink-textarea">](https://www.npmjs.com/package/react-ink-textarea) [<img alt="NPM Version" src="https://img.shields.io/npm/v/react-ink-textarea">](https://www.npmjs.com/package/react-ink-textarea) [<img alt="NPM License" src="https://img.shields.io/npm/l/react-ink-textarea">](https://github.com/omranjamal/react-ink-textarea/blob/main/LICENSE) [<img alt="GitHub forks" src="https://img.shields.io/github/forks/omranjamal/react-ink-textarea?style=flat">](https://github.com/omranjamal/react-ink-textarea/network/members)
+[<img alt="GitHub Open Issues and Pull Requests" src="https://img.shields.io/github/issues-search/omranjamal/react-ink-textarea?query=is%3Aopen&label=open%20issues%20%26%20PRs">](https://github.com/omranjamal/react-ink-textarea/issues) [<img alt="NPM Downloads" src="https://img.shields.io/npm/dw/react-ink-textarea">](https://www.npmjs.com/package/react-ink-textarea) [<img alt="NPM Version" src="https://img.shields.io/npm/v/react-ink-textarea">](https://www.npmjs.com/package/react-ink-textarea) [<img alt="NPM License" src="https://img.shields.io/npm/l/react-ink-textarea">](https://github.com/omranjamal/react-ink-textarea/blob/main/LICENSE) [<img alt="GitHub forks" src="https://img.shields.io/github/forks/omranjamal/react-ink-textarea?style=flat">](https://github.com/omranjamal/react-ink-textarea/network/members)
 
 Build rich CLI forms with a full-featured textarea that supports multi-line editing, cursor navigation, undo, and customizable line prefixes.
 
@@ -37,7 +37,7 @@ Build rich CLI forms with a full-featured textarea that supports multi-line edit
 ## Features
 
 - 🎨 Polished feel — blinking cursor that pauses while typing, active-line highlight, multi-line placeholder, optional whitespace glyphs.
-- 🪪 Custom gutter via `linePrefix` render-prop, plus a drop-in `<LineNumberPrefix />`.
+- 🪪 Custom gutter via `linePrefix` render-prop (plus a drop-in `<LineNumberPrefix />`) and a matching `lineSuffix` for right-side per-line context.
 - 🌈 Regex (or function) labels with per-label styles; cursor reports the label under it.
 - ⌨️ Readline keybindings, configurable per chord. `Tab` is a callback. Grouped undo and bracketed paste.
 - 🌐 Unicode-correct: grapheme cursor, visual-width wrapping, real tab expansion, CRLF normalized.
@@ -179,6 +179,40 @@ import { TextArea, LineNumber } from "react-ink-textarea";
   }
 />;
 ```
+
+### 3b. Line suffixes (context info)
+
+`lineSuffix` is the right-side mirror of `linePrefix`: a `ReactNode` or render prop drawn
+**after** each line, pinned to the right edge while text stays left. Use it for per-line
+context — token/char counts, git blame, status badges. It receives the same
+`TLinePrefixProps` (`{ lineNumber, totalLines, isActiveLine, isVirtualLine,
+isContinuationLine, continuationIndex, isLastChunkOfLine }`). Gate on `isLastChunkOfLine` to
+render the suffix once per logical line rather than on every wrapped row.
+
+```tsx
+import { Text } from "ink";
+import { TextArea } from "react-ink-textarea";
+
+const value = "hello\nworld";
+
+<TextArea
+  focus
+  value={value}
+  onSubmit={() => {}}
+  lineSuffix={({ lineNumber, isLastChunkOfLine }) => {
+    if (!isLastChunkOfLine) return null; // once per logical line
+    const len = (value.split("\n")[lineNumber] ?? "").length;
+    return <Text color="gray"> {len}c</Text>;
+  }}
+/>;
+```
+
+Both `linePrefix` and `lineSuffix` are variable width — each sizes to whatever node you
+return — and text wrapping accounts for each **sub-row's** own prefix/suffix width. A
+decoration that only widens one sub-row (e.g. a marker on the sub-row the caret is on) re-wraps
+only that sub-row; the rest keep their own width, so you get a natural hanging indent unless you
+pad the continuations yourself. Widths for rows outside `viewportLines` are approximated with a
+fallback until they scroll into view (same measurement caveat as `linePrefix`).
 
 ### 4. Inline syntax highlighting
 
@@ -349,7 +383,8 @@ const CodeEditor = () => {
 | `focus`                 | `boolean`                                                                                   | Whether the textarea is focused and receiving keyboard input.                                                                             |
 | `onSubmit`              | `(value: string) => void`                                                                   | Called when the user presses **Enter**. Receives the full text.                                                                           |
 | `placeholder`           | `string`                                                                                    | Placeholder text shown when the textarea is empty.                                                                                        |
-| `linePrefix`            | `ReactNode \| (props: TLinePrefixProps) => ReactNode`                                       | Optional prefix rendered before each line. The function form receives `{ lineNumber, totalLines, readOnly, isActiveLine, isVirtualLine, isContinuationLine, continuationIndex }`. Use for line numbers, gutters, borders, etc. |
+| `linePrefix`            | `ReactNode \| (props: TLinePrefixProps) => ReactNode`                                       | Optional prefix rendered before each line. The function form receives `{ lineNumber, totalLines, readOnly, isActiveLine, isVirtualLine, isContinuationLine, continuationIndex, isLastChunkOfLine }`. Use for line numbers, gutters, borders, etc. |
+| `lineSuffix`            | `ReactNode \| (props: TLineSuffixProps) => ReactNode`                                       | Optional suffix rendered after each line, pinned to the right edge. Same props as `linePrefix` (`TLineSuffixProps` is an alias of `TLinePrefixProps`). Use for per-line context info; gate on `isLastChunkOfLine` to render once per logical line. |
 | `highlightActiveLine`   | `boolean`                                                                                   | When `true`, the active line is highlighted with a subtle background color. Defaults to `false`.                                          |
 | `activeLineColor`       | `string`                                                                                    | Background color for the active line highlight. Defaults to no color.                                                                     |
 | `cursorInterval`        | `number`                                                                                    | Cursor blink interval in milliseconds. Defaults to `500`.                                                                                 |
@@ -560,6 +595,18 @@ Things to know before shipping. Most are intrinsic to running a rich editor insi
 
 - **Rows outside `viewportLines` are not rendered.** Any consumer-side measurement on hidden rows (`useBoxMetrics`, refs in `linePrefix`) won't fire until the row scrolls in.
 - **Wrapping happens at the measured content width.** Constrain via a parent `<Box width={...}>` to wrap at a fixed column; otherwise wraps at `stdout.columns`.
+
+</details>
+
+<details>
+<summary><b>Per-sub-row prefix/suffix width &amp; the "dead zone"</b></summary>
+
+Text wraps to each **visual sub-row's** own `linePrefix`/`lineSuffix` width (measured per row), so a decoration that only widens one sub-row re-wraps just that sub-row. Two things to know:
+
+- **Offscreen rows use a fallback width.** A sub-row's exact width isn't known until it's rendered, so rows outside `viewportLines` wrap against a best-effort width until they scroll in (then re-wrap). Wrapping also settles over a frame or two after a decoration's width changes.
+- **Don't tie a width-changing decoration to the caret's sub-row.** If a decoration's *width* depends on a wrapping-derived flag — most commonly `isActiveLine` (the caret's sub-row) — you create a circular dependency: the width decides how many characters fit, which decides which sub-row the caret lands on, which decides where the decoration renders. When the decoration is wide enough to push the caret across a wrap boundary, there is a **dead zone** — a band of caret columns as wide as the decoration — with **no self-consistent layout** (both placements contradict themselves). The component detects the oscillation and freezes rather than looping ("Maximum update depth"), but the frozen frame is internally inconsistent: a sub-row measured at one width is drawn with the other, so it clips to `…` and the overflow doesn't reflow. This is mathematical, not a bug — no correct frame exists.
+
+  **Fix:** anchor a width-changing decoration to a *stable* target instead of the active sub-row — the caret's **logical line** (`props.continuationIndex === 0 && props.lineNumber === caretLine`), or reserve a **fixed-width slot** whose contents (not width) change. Both keep the decoration's position independent of the reflow it causes, so wrapping stays stable everywhere. Changing width based on `lineNumber`, `isVirtualLine`, `isContinuationLine`, `continuationIndex`, or `totalLines` is fine — those don't depend on the wrap widths. Only `isActiveLine` closes the loop.
 
 </details>
 
